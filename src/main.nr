@@ -13,11 +13,13 @@ pub contract PrivateVoting {
         hash::poseidon2_hash,
         traits::{Hash, ToField},
     };
-    use dep::aztec::state_vars::{Map, private_set::PrivateSet, PublicImmutable, PublicMutable};
+    use dep::aztec::state_vars::{
+        Map, owned::Owned, private_set::PrivateSet, PublicImmutable, PublicMutable,
+    };
 
     #[storage]
     struct Storage<Context> {
-        proposals: PrivateSet<ProposalNote, Context>,
+        proposals: Owned<PrivateSet<ProposalNote, Context>, Context>,
     }
 
     #[external("private")]

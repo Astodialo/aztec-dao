@@ -9,7 +9,6 @@ use dep::aztec::{
         hash::poseidon2_hash_with_separator,
         traits::{Deserialize, Hash, Packable, Serialize, ToField},
     },
-    state_vars::map::Map,
 };
 
 #[derive(Eq, Serialize, Deserialize, Packable)]
@@ -18,8 +17,7 @@ pub struct ProposalNote {
     // The ID of the proposal
     pub id: Field,
     // The Proposal tally, repressented by option ID and votes
-    pub tally: Map<Field, Field, PrivateContext>,
-    pub voters: Vec<AztecAddress>,
+    pub voters: [AztecAddress; 8],
 }
 
 impl NoteHash for ProposalNote {
@@ -40,12 +38,9 @@ impl NoteHash for ProposalNote {
         note_hash_for_nullification: Field,
     ) -> Field {
         let voter = context.msg_sender().unwrap();
-        for i in 0..self.voters.len() {
-            if self.voters.get(i) == voter {
-                let is_voter = true;
-                assert(is_voter, "msg_sender is not a voter");
-            }
-        }
+        let is_voter = self.voters.any(|x| x == voter);
+        assert(is_voter, "msg_sender is not a voter");
+
         let voter_npk_m = get_public_keys(context.msg_sender().unwrap()).npk_m;
         let voter_npk_m_hash = voter_npk_m.hash();
         let secret = context.request_nsk_app(voter_npk_m_hash);
@@ -58,12 +53,9 @@ impl NoteHash for ProposalNote {
         voter: AztecAddress,
         note_hash_for_nullification: Field,
     ) -> Field {
-        for i in 0..self.voters.len() {
-            if self.voters.get(i) == voter {
-                let is_voter = true;
-                assert(is_voter, "msg_sender is not a voter");
-            }
-        }
+        let is_voter = self.voters.any(|x| x == voter);
+        assert(is_voter, "msg_sender is not a voter");
+
         let voter_npk_m = get_public_keys(voter).npk_m;
         let voter_npk_m_hash = voter_npk_m.hash();
         let secret = get_nsk_app(voter_npk_m_hash);
