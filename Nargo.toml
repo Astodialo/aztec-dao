@@ -1,6 +1,6 @@
 [package]
 name = "covenant_aztec"
-type = "bin"
+type = "contract"
 authors = [""]
 
 [dependencies]
