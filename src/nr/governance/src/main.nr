@@ -21,7 +21,7 @@ contract Governance {
     };
     use aztec::messages::message_delivery::MessageDelivery;
 
-    use std::ops::Div;
+    use std::{cmp, ops::Div};
     use treasury::Treasury;
 
     #[storage]
@@ -69,6 +69,7 @@ contract Governance {
         nft: bool,
         nft_token_id: Field,
         recipient: AztecAddress,
+        threshold: u32,
     ) {
         _authorized(&mut context, storage);
 
@@ -84,6 +85,7 @@ contract Governance {
                     nft,
                     nft_token_id,
                     recipient,
+                    threshold,
                 );
                 storage.token_proposals.insert(proposal).emit(
                     context.this_address(),
@@ -127,17 +129,15 @@ contract Governance {
                 // Update the proposal with the vote
                 let retrieved_note = notes.get_unchecked(0);
 
+                assert(!retrieved_note.final, "Proposal finalized");
+
                 // Use the vote method to update tally
                 let mut updated_proposal = retrieved_note.vote(choice);
 
-                let voters = updated_proposal.votes_for + updated_proposal.votes_against;
-                let threshold = if cur_members == 1 {
-                    1
-                } else {
-                    cur_members.div(voters) + 1
-                };
+                let voters = cmp::max(updated_proposal.votes_for, updated_proposal.votes_against);
+                let threshold = updated_proposal.threshold;
 
-                if voters as u32 >= threshold as u32 {
+                if voters >= threshold {
                     updated_proposal.final = true;
                 }
 
@@ -179,6 +179,17 @@ contract Governance {
 
         let notes = storage.token_proposals.pop_notes(options);
         assert(notes.len() == 1, "Proposal not found");
+
+        let mut retrieved_note = notes.get_unchecked(0);
+
+        assert(!retrieved_note.final, "Proposal finalized");
+
+        retrieved_note.final = true;
+
+        storage.token_proposals.insert(retrieved_note).emit(
+            context.this_address(),
+            MessageDelivery.CONSTRAINED_ONCHAIN,
+        );
     }
 
     #[external("private")]

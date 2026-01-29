@@ -22,8 +22,9 @@ pub struct TokenProposalNote {
     pub nft_token_id: Field,
     pub recipient: AztecAddress,
     pub final: bool,
-    pub votes_for: Field,
-    pub votes_against: Field,
+    pub threshold: u32,
+    pub votes_for: u32,
+    pub votes_against: u32,
     pub randomness: Field,
 }
 
@@ -57,6 +58,7 @@ impl TokenProposalNote {
         nft: bool,
         nft_token_id: Field,
         recipient: AztecAddress,
+        threshold: u32,
     ) -> Self {
         // Safety: Using random() is safe here as it's for generating randomness for note uniqueness
         let randomness = unsafe { random() };
@@ -69,6 +71,7 @@ impl TokenProposalNote {
             nft_token_id,
             recipient,
             final: false,
+            threshold,
             votes_for: 0,
             votes_against: 0,
             randomness,
@@ -97,6 +100,7 @@ impl TokenProposalNote {
             nft_token_id: self.nft_token_id,
             recipient: self.recipient,
             final: false,
+            threshold: self.threshold,
             votes_for: new_votes_for,
             votes_against: new_votes_against,
             randomness,

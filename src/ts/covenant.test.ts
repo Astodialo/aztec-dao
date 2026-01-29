@@ -174,7 +174,7 @@ describe("Gov Contract", () => {
   it("create proposal from member, should succeed", async () => {
     await gov
       .withWallet(wallet)
-      .methods.create_proposal(token.address, AMOUNT, false, 0n, bob)
+      .methods.create_proposal(token.address, AMOUNT, false, 0n, bob, 1)
       .send({ from: alice })
       .wait();
 
@@ -198,7 +198,7 @@ describe("Gov Contract", () => {
     await expect(
       gov
         .withWallet(wallet)
-        .methods.create_proposal(token.address, AMOUNT, false, 0n, bob)
+        .methods.create_proposal(token.address, AMOUNT, false, 0n, bob, 1)
         .send({ from: bob })
         .wait(),
     ).rejects.toThrow(/Assertion failed: Not a member/)
@@ -217,7 +217,7 @@ describe("Gov Contract", () => {
     beforeEach(async () => {
       await gov
         .withWallet(wallet)
-        .methods.create_proposal(token.address, AMOUNT, false, 0n, bob)
+        .methods.create_proposal(token.address, AMOUNT, false, 0n, bob, 2)
         .send({ from: alice })
         .wait();
     });
@@ -235,7 +235,7 @@ describe("Gov Contract", () => {
 
 
       expect(new_proposal.votes_for).toStrictEqual(1n);
-      expect(new_proposal.final).toStrictEqual(true);
+      expect(new_proposal.final).toStrictEqual(false);
     });
 
     it("vote on proposal from 2 members and finalize proposal, should succeed", async () => {
@@ -343,7 +343,7 @@ describe("Gov Contract", () => {
     await expect(
       gov
         .withWallet(wallet)
-        .methods.create_proposal(token.address, AMOUNT, false, 0n, bob)
+        .methods.create_proposal(token.address, AMOUNT, false, 0n, bob, 1)
         .send({ from: bob })
         .wait(),
     ).rejects.toThrow(/Assertion failed: Not a member/)
@@ -364,7 +364,7 @@ describe("Gov Contract", () => {
 
     await gov
       .withWallet(wallet)
-      .methods.create_proposal(token.address, AMOUNT, false, 0n, bob)
+      .methods.create_proposal(token.address, AMOUNT, false, 0n, bob, 1)
       .send({ from: bob })
       .wait();
 
@@ -391,7 +391,7 @@ describe("Gov Contract", () => {
     await expect(
       gov
         .withWallet(wallet)
-        .methods.create_proposal(token.address, AMOUNT, false, 0n, bob)
+        .methods.create_proposal(token.address, AMOUNT, false, 0n, bob, 1)
         .send({ from: bob })
         .wait(),
     ).rejects.toThrow(/Assertion failed: Not a member/)
@@ -402,7 +402,7 @@ describe("Gov Contract", () => {
     await expect(
       gov
         .withWallet(wallet)
-        .methods.create_proposal(token.address, AMOUNT, false, 0n, bob)
+        .methods.create_proposal(token.address, AMOUNT, false, 0n, bob, 1)
         .send({ from: bob })
         .wait(),
     ).rejects.toThrow(/Assertion failed: Not a member/)
@@ -423,7 +423,7 @@ describe("Gov Contract", () => {
 
     await gov
       .withWallet(wallet)
-      .methods.create_proposal(token.address, AMOUNT, false, 0n, bob)
+      .methods.create_proposal(token.address, AMOUNT, false, 0n, bob, 1)
       .send({ from: bob })
       .wait();
 
@@ -448,7 +448,7 @@ describe("Gov Contract", () => {
     await expect(
       gov
         .withWallet(wallet)
-        .methods.create_proposal(token.address, AMOUNT, false, 0n, bob)
+        .methods.create_proposal(token.address, AMOUNT, false, 0n, bob, 1)
         .send({ from: bob })
         .wait(),
     ).rejects.toThrow(/Assertion failed: Not a member/)
@@ -476,7 +476,7 @@ describe("Gov Contract", () => {
     await expect(
       gov
         .withWallet(wallet)
-        .methods.create_proposal(token.address, AMOUNT, false, 0n, bob)
+        .methods.create_proposal(token.address, AMOUNT, false, 0n, bob, 1)
         .send({ from: alice })
         .wait(),
     ).rejects.toThrow(/Assertion failed: Not a member/)
@@ -486,7 +486,7 @@ describe("Gov Contract", () => {
     await expect(
       gov
         .withWallet(wallet)
-        .methods.create_proposal(token.address, AMOUNT, false, 0n, bob)
+        .methods.create_proposal(token.address, AMOUNT, false, 0n, bob, 1)
         .send({ from: bob })
         .wait(),
     ).rejects.toThrow(/Assertion failed: Not a member/)
@@ -507,7 +507,7 @@ describe("Gov Contract", () => {
 
     await gov
       .withWallet(wallet)
-      .methods.create_proposal(token.address, AMOUNT, false, 0n, bob)
+      .methods.create_proposal(token.address, AMOUNT, false, 0n, bob, 1)
       .send({ from: bob })
       .wait();
 
@@ -529,7 +529,7 @@ describe("Gov Contract", () => {
     beforeEach(async () => {
       await gov
         .withWallet(wallet)
-        .methods.create_proposal(token.address, AMOUNT, false, 0n, bob)
+        .methods.create_proposal(token.address, AMOUNT, false, 0n, bob, 1)
         .send({ from: alice })
         .wait();
     });
@@ -607,7 +607,7 @@ describe("Gov Contract", () => {
 
       await gov
         .withWallet(wallet)
-        .methods.create_proposal(nft.address, AMOUNT, true, tokenId, bob)
+        .methods.create_proposal(nft.address, AMOUNT, true, tokenId, bob, 1)
         .send({ from: alice })
         .wait();
     });
