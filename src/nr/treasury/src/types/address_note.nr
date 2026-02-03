@@ -2,7 +2,6 @@ use aztec::{
     context::private_context::PrivateContext,
     macros::notes::custom_note,
     note::note_interface::NoteHash,
-    oracle::random::random,
     protocol_types::{
         address::AztecAddress,
         constants::{GENERATOR_INDEX__NOTE_HASH, GENERATOR_INDEX__NOTE_NULLIFIER},
@@ -15,25 +14,38 @@ use aztec::{
 #[custom_note]
 pub struct AddressNote {
     pub address: AztecAddress,
-    pub randomness: Field,
 }
 
 impl NoteHash for AddressNote {
-    fn compute_note_hash(self, storage_slot: Field) -> Field {
-        let secret = self.pack().concat([storage_slot]);
+    fn compute_note_hash(
+        self,
+        owner: AztecAddress,
+        storage_slot: Field,
+        randomness: Field,
+    ) -> Field {
+        let secret = self.pack().concat([storage_slot, randomness, owner.to_field()]);
         poseidon2_hash_with_separator(secret, GENERATOR_INDEX__NOTE_HASH)
     }
 
-    fn compute_nullifier(self, _: &mut PrivateContext, note_hash_to_nullify: Field) -> Field {
+    fn compute_nullifier(
+        self,
+        _context: &mut PrivateContext,
+        owner: AztecAddress,
+        note_hash_to_nullify: Field,
+    ) -> Field {
         poseidon2_hash_with_separator(
-            [note_hash_to_nullify, self.address.to_field()],
+            [note_hash_to_nullify, owner.to_field()],
             GENERATOR_INDEX__NOTE_NULLIFIER,
         )
     }
 
-    unconstrained fn compute_nullifier_unconstrained(self, note_hash_to_nullify: Field) -> Field {
+    unconstrained fn compute_nullifier_unconstrained(
+        self,
+        owner: AztecAddress,
+        note_hash_to_nullify: Field,
+    ) -> Field {
         poseidon2_hash_with_separator(
-            [note_hash_to_nullify, self.address.to_field()],
+            [note_hash_to_nullify, owner.to_field()],
             GENERATOR_INDEX__NOTE_NULLIFIER,
         )
     }
@@ -41,8 +53,6 @@ impl NoteHash for AddressNote {
 
 impl AddressNote {
     pub fn new(address: AztecAddress) -> Self {
-        // Safety: Using random() is safe here as it's for generating randomness for note uniqueness
-        let randomness = unsafe { random() };
-        AddressNote { address, randomness }
+        AddressNote { address }
     }
 }

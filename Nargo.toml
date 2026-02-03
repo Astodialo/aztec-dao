@@ -4,6 +4,7 @@ members = [
     "src/nr/token_contract",
     "src/nr/nft_contract",
     "src/nr/treasury",
+    "src/nr/members",
 ]
 
 [benchmark]

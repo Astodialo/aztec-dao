@@ -12,21 +12,18 @@ use aztec::{
 
 #[derive(Eq, Serialize, Deserialize, Packable)]
 #[custom_note]
-pub struct TokenProposalNote {
-    //pub gov_contract: AztecAddress,
+pub struct MemberProposalNote {
+    pub gov_contract: AztecAddress,
     pub proposal_id: Field,
-    pub token: AztecAddress,
-    pub amount: u128,
-    pub nft: bool,
-    pub nft_token_id: Field,
-    pub recipient: AztecAddress,
+    pub add: bool,
+    pub member: AztecAddress,
     pub final: bool,
     pub threshold: u32,
     pub votes_for: u32,
     pub votes_against: u32,
 }
 
-impl NoteHash for TokenProposalNote {
+impl NoteHash for MemberProposalNote {
     fn compute_note_hash(
         self,
         owner: AztecAddress,
@@ -61,25 +58,19 @@ impl NoteHash for TokenProposalNote {
     }
 }
 
-impl TokenProposalNote {
+impl MemberProposalNote {
     pub fn new(
-        //gov_contract: AztecAddress,
+        gov_contract: AztecAddress,
         proposal_id: Field,
-        token: AztecAddress,
-        amount: u128,
-        nft: bool,
-        nft_token_id: Field,
-        recipient: AztecAddress,
+        add: bool,
+        member: AztecAddress,
         threshold: u32,
     ) -> Self {
-        TokenProposalNote {
-          //  gov_contract,
+        MemberProposalNote {
+            gov_contract,
             proposal_id,
-            token,
-            amount,
-            nft,
-            nft_token_id,
-            recipient,
+            add,
+            member,
             final: false,
             threshold,
             votes_for: 0,
@@ -88,7 +79,6 @@ impl TokenProposalNote {
     }
 
     pub fn vote(self, choice: u32) -> Self {
-
         let (new_votes_for, new_votes_against) = if choice == 0 {
             (self.votes_for, self.votes_against + 1)
         } else if choice == 1 {
@@ -98,14 +88,11 @@ impl TokenProposalNote {
             (self.votes_for, self.votes_against)
         };
 
-        TokenProposalNote {
-            //gov_contract: self.gov_contract,
+        MemberProposalNote {
+            gov_contract: self.gov_contract,
             proposal_id: self.proposal_id,
-            token: self.token,
-            amount: self.amount,
-            nft: self.nft,
-            nft_token_id: self.nft_token_id,
-            recipient: self.recipient,
+            add: self.add,
+            member: self.member,
             final: false,
             threshold: self.threshold,
             votes_for: new_votes_for,
