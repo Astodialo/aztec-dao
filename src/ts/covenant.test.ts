@@ -89,8 +89,6 @@ describe("Gov Contract", () => {
     const pxe = await createPXE(node, fullConfig, { store });
 
     [alice, bob] = accounts;
-    const accountsData = await getInitialTestAccountsData();
-
 
     treasSk = Fr.random();
     treasKeys = await deriveKeys(treasSk);
@@ -112,10 +110,9 @@ describe("Gov Contract", () => {
       constructorArtifact: "constructor"
     })
 
-    let preGovPartial = await computePartialAddress(preGovInstance);
+    await wallet.registerContract(preGovInstance, GovernanceContract.artifact, govSk);
 
-    let na = await pxe.registerAccount(govSk, preGovPartial);
-    console.log("COMPLETE:\n", na);
+    console.log("Precomputed address:\n", preGovInstance.address);
 
     gov = (await deployGovernance(
       govKeys.publicKeys,
@@ -134,6 +131,16 @@ describe("Gov Contract", () => {
 
     console.log("Gov address:", gov.address);
 
+    let preTresInstance = await getContractInstanceFromInstantiationParams(TreasuryContract.artifact, {
+      publicKeys: treasKeys.publicKeys,
+      deployer: alice,
+      salt: treasSalt,
+      constructorArgs: [gov.address],
+      constructorArtifact: "constructor"
+    })
+
+    await wallet.registerContract(preTresInstance, TreasuryContract.artifact, treasSk);
+
     treasury = (await deployTreasury(
       treasKeys.publicKeys,
       wallet,
@@ -149,6 +156,17 @@ describe("Gov Contract", () => {
     }
 
     console.log("Treasury address:", treasury.address);
+
+    let preMemInstance = await getContractInstanceFromInstantiationParams(MembersContract.artifact, {
+      publicKeys: memKeys.publicKeys,
+      deployer: alice,
+      salt: memSalt,
+      constructorArgs: [gov.address],
+      constructorArtifact: "constructor"
+    })
+
+    await wallet.registerContract(preMemInstance, MembersContract.artifact, memSk);
+
 
     members = (await deployMembers(
       memKeys.publicKeys,

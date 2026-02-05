@@ -127,7 +127,8 @@ export async function deployGovernance(
   args: unknown[] = [],
   constructor?: string,
 ): Promise<GovernanceContract> {
-  const contractTx = Contract.deploy(
+  const contractTx = Contract.deployWithPublicKeys(
+    publicKeys,
     wallet,
     GovernanceContractArtifact,
     args,
@@ -138,7 +139,7 @@ export async function deployGovernance(
   const contractSend = contractTx
     .send({ contractAddressSalt: salt, universalDeploy: true, from: deployer });
 
-  //console.log("Sent tx:", contractSend);
+  console.log("Sent tx:", contractSend);
 
   //console.log("DEPLOYER:", deployer);
 
