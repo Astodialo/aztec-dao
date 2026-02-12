@@ -1,6 +1,6 @@
 use crate::Token;
 use aztec::{
-    protocol::address::AztecAddress, test::helpers::test_environment::TestEnvironment,
+    protocol_types::address::AztecAddress, test::helpers::test_environment::TestEnvironment,
 };
 use aztec::test::helpers::authwit as authwit_cheatcodes;
 

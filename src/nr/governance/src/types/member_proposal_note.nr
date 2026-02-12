@@ -1,10 +1,10 @@
 use aztec::{
-    context::PrivateContext,
+    context::private_context::PrivateContext,
     macros::notes::custom_note,
     note::note_interface::NoteHash,
-    protocol::{
+    protocol_types::{
         address::AztecAddress,
-        constants::{DOM_SEP__NOTE_HASH, DOM_SEP__NOTE_NULLIFIER},
+        constants::{GENERATOR_INDEX__NOTE_HASH, GENERATOR_INDEX__NOTE_NULLIFIER},
         hash::poseidon2_hash_with_separator,
         traits::{Deserialize, Packable, Serialize, ToField},
     },
@@ -31,7 +31,7 @@ impl NoteHash for MemberProposalNote {
         randomness: Field,
     ) -> Field {
         let secret = self.pack().concat([storage_slot, randomness, owner.to_field()]);
-        poseidon2_hash_with_separator(secret, DOM_SEP__NOTE_HASH)
+        poseidon2_hash_with_separator(secret, GENERATOR_INDEX__NOTE_HASH)
     }
 
     fn compute_nullifier(
@@ -42,7 +42,7 @@ impl NoteHash for MemberProposalNote {
     ) -> Field {
         poseidon2_hash_with_separator(
             [note_hash_to_nullify, owner.to_field()],
-            DOM_SEP__NOTE_NULLIFIER,
+            GENERATOR_INDEX__NOTE_NULLIFIER,
         )
     }
 
@@ -50,11 +50,11 @@ impl NoteHash for MemberProposalNote {
         self,
         owner: AztecAddress,
         note_hash_to_nullify: Field,
-    ) -> Option<Field> {
-        Option::some(poseidon2_hash_with_separator(
+    ) -> Field {
+        poseidon2_hash_with_separator(
             [note_hash_to_nullify, owner.to_field()],
-            DOM_SEP__NOTE_NULLIFIER,
-        ))
+            GENERATOR_INDEX__NOTE_NULLIFIER,
+        )
     }
 }
 

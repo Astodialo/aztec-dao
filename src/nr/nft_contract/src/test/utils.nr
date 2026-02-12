@@ -1,6 +1,6 @@
 use crate::NFT;
 use aztec::{
-    protocol::{address::AztecAddress, storage::map::derive_storage_slot_in_map},
+    protocol_types::{address::AztecAddress, storage::map::derive_storage_slot_in_map},
     test::helpers::test_environment::TestEnvironment,
 };
 
