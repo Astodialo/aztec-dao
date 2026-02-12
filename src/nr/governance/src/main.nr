@@ -3,11 +3,10 @@ pub mod types;
 
 #[aztec]
 contract Governance {
-    use address_note::AddressNote;
-    use field_note::FieldNote;
     use crate::types::member_proposal_note::MemberProposalNote;
     use crate::types::members_note::MembersNote;
     use crate::types::token_proposal_note::TokenProposalNote;
+    use address_note::AddressNote;
     use aztec::context::PrivateContext;
     use aztec::keys::getters::get_public_keys;
     use aztec::{
@@ -21,6 +20,7 @@ contract Governance {
         utils::comparison::Comparator,
     };
     use aztec::messages::message_delivery::MessageDelivery;
+    use field_note::FieldNote;
 
     use members::Members;
     use treasury::Treasury;
@@ -331,18 +331,27 @@ contract Governance {
                 // msg_sender is admin
                 assert(msg_sender.inner == note.members[0], "Not admin");
 
-                let mut replaced = false;
+                let mut remove_index = 11;
+                
+                // Find the index of the member to remove
                 for i in 0..10 {
                     if note.members[i] == address.inner {
-                        note.members[i] = 0;
-                        replaced = true;
-                    }
-
-                    if replaced {
-                        note.members[i - 1] = note.members[i];
-                        note.members[i] = 0;
+                        remove_index = i;
                     }
                 }
+                
+                assert(remove_index != 11, "Member not found");
+                
+                // Shift all elements after the removed one up by one position
+                for i in 0..10 {
+                    if i >= remove_index & i < 9 {
+                        note.members[i] = note.members[i + 1];
+                    }
+                }
+                
+                // Set the last element to 0
+                note.members[9] = 0;
+
                 note
             })
             .deliver(MessageDelivery.ONCHAIN_CONSTRAINED)
