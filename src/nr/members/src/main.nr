@@ -16,15 +16,14 @@ pub contract Members {
             constants::MAX_NOTES_PER_PAGE, note_getter_options::NoteGetterOptions,
             note_interface::NoteProperties, note_viewer_options::NoteViewerOptions,
         },
-        protocol_types::{
+        protocol::{
             address::AztecAddress,
             constants::CONTRACT_INSTANCE_REGISTRY_CONTRACT_ADDRESS,
             contract_class_id::ContractClassId,
             traits::{FromField, ToField},
         },
         state_vars::{
-            Map, owned::Owned, private_mutable::PrivateMutable, private_set::PrivateSet,
-            public_immutable::PublicImmutable, public_mutable::PublicMutable,
+            Map, Owned, PrivateMutable, PrivateSet, PublicImmutable, PublicMutable,
         },
         utils::comparison::Comparator,
     };
@@ -32,8 +31,8 @@ pub contract Members {
     use compressed_string::FieldCompressedString;
     // contract instance registry
     use contract_instance_registry::ContractInstanceRegistry;
-    // nft note structs
-    use crate::types::address_note::AddressNote;
+    // note structs
+    use address_note::AddressNote;
     use crate::types::hat_note::HatNote;
 
     /// @param symbol The symbol of the NFT
@@ -63,10 +62,10 @@ pub contract Members {
     ) {
         let this_address = self.context.this_address();
 
-        let gov_note = AddressNote::new(gov_addr);
+        let gov_note = AddressNote { address: gov_addr };
 
         self.storage.gov.at(this_address).initialize(gov_note).deliver(
-            MessageDelivery.CONSTRAINED_ONCHAIN,
+            MessageDelivery.ONCHAIN_CONSTRAINED,
         );
 
         let member = HatNote::new(
@@ -82,7 +81,7 @@ pub contract Members {
         );
 
         self.storage.members.at(this_address).insert(member).deliver(
-            MessageDelivery.CONSTRAINED_ONCHAIN,
+            MessageDelivery.ONCHAIN_CONSTRAINED,
         );
     }
 
@@ -94,11 +93,11 @@ pub contract Members {
             .gov
             .at(this_address)
             .replace(|note| {
-                let msg_sender = context.msg_sender().unwrap();
+                let msg_sender = context.maybe_msg_sender().unwrap();
                 assert(note.address == msg_sender, "Not authorized");
                 note
             })
-            .deliver(MessageDelivery.CONSTRAINED_ONCHAIN);
+            .deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
     }
 
     #[external("private")]
@@ -117,7 +116,7 @@ pub contract Members {
         let retrieved_note = member_note.get_unchecked(0);
 
         self.storage.members.at(this_address).insert(retrieved_note).deliver(
-            MessageDelivery.CONSTRAINED_ONCHAIN,
+            MessageDelivery.ONCHAIN_CONSTRAINED,
         );
     }
 
@@ -149,7 +148,7 @@ pub contract Members {
         );
 
         self.storage.members.at(this_address).insert(member).deliver(
-            MessageDelivery.CONSTRAINED_ONCHAIN,
+            MessageDelivery.ONCHAIN_CONSTRAINED,
         );
     }
 
