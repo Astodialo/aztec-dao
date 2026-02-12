@@ -1,12 +1,16 @@
 use crate::Token;
+use crate::types::balance_set::BalanceSet;
 use aztec::{
+    note::{constants::MAX_NOTES_PER_PAGE, note_viewer_options::NoteViewerOptions},
     oracle::random::random,
-    protocol::address::AztecAddress,
+    protocol_types::{address::AztecAddress, traits::Packable},
+    state_vars::owned_state_variable::OwnedStateVariable,
     test::helpers::test_environment::TestEnvironment,
 };
 use aztec::test::helpers::authwit as authwit_cheatcodes;
 use std::ops::WrappingSub;
 use std::test::OracleMock;
+use uint_note::uint_note::UintNote;
 
 pub global mint_amount: u128 = 10_000 as u128;
 
@@ -277,24 +281,23 @@ pub unconstrained fn get_private_balance(
     amt
 }
 
-// TODO: This function needs to be reworked for nightly - BalanceSet.set is now private
-// pub unconstrained fn get_private_balance_notes(
-//     env: TestEnvironment,
-//     token_contract_address: AztecAddress,
-//     account: AztecAddress,
-//     offset: u32,
-// ) -> BoundedVec<UintNote, MAX_NOTES_PER_PAGE> {
-//     let notes = env.utility_context_at(token_contract_address, |context| {
-//         let options =
-//             NoteViewerOptions::<UintNote, <UintNote as Packable>::N>::new().set_offset(offset);
-//         let private_balances_slot = Token::storage_layout().private_balances.slot;
-//         let set: BalanceSet<_> = OwnedStateVariable::new(context, private_balances_slot, account);
-//         let notes: BoundedVec<UintNote, MAX_NOTES_PER_PAGE> = set.set.view_notes(options);
-//         notes
-//     });
-//
-//     notes
-// }
+pub unconstrained fn get_private_balance_notes(
+    env: TestEnvironment,
+    token_contract_address: AztecAddress,
+    account: AztecAddress,
+    offset: u32,
+) -> BoundedVec<UintNote, MAX_NOTES_PER_PAGE> {
+    let notes = env.utility_context_at(token_contract_address, |context| {
+        let options =
+            NoteViewerOptions::<UintNote, <UintNote as Packable>::N>::new().set_offset(offset);
+        let private_balances_slot = Token::storage_layout().private_balances.slot;
+        let set: BalanceSet<_> = OwnedStateVariable::new(context, private_balances_slot, account);
+        let notes: BoundedVec<UintNote, MAX_NOTES_PER_PAGE> = set.set.view_notes(options);
+        notes
+    });
+
+    notes
+}
 
 /// @notice Retrieves whether a commitment has been stored in the storage of the target contract
 pub unconstrained fn _commitment_storage_read(

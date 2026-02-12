@@ -1,14 +1,15 @@
 use aztec::{
     context::{PrivateContext, PublicContext},
-    keys::getters::{get_nhk_app, get_public_keys, try_get_public_keys},
+    keys::getters::{get_nsk_app, get_public_keys},
     macros::notes::custom_note,
-    messages::logs::partial_note::compute_partial_note_private_content_log,
+    messages::logs::note,
     note::note_interface::{NoteHash, NoteType},
     oracle::random::random,
-    protocol::{
+    protocol_types::{
         address::AztecAddress,
         constants::{
-            DOM_SEP__NOTE_HASH, DOM_SEP__NOTE_NULLIFIER, DOM_SEP__PARTIAL_NOTE_VALIDITY_COMMITMENT,
+            GENERATOR_INDEX__NOTE_HASH, GENERATOR_INDEX__NOTE_NULLIFIER,
+            GENERATOR_INDEX__PARTIAL_NOTE_VALIDITY_COMMITMENT,
         },
         hash::poseidon2_hash_with_separator,
         traits::{Deserialize, Hash, Packable, Serialize, ToField},
@@ -65,10 +66,10 @@ impl NoteHash for NFTNote {
     ) -> Field {
         let owner_npk_m = get_public_keys(owner).npk_m;
         let owner_npk_m_hash = owner_npk_m.hash();
-        let secret = context.request_nhk_app(owner_npk_m_hash);
+        let secret = context.request_nsk_app(owner_npk_m_hash);
         poseidon2_hash_with_separator(
             [note_hash_for_nullification, secret],
-            DOM_SEP__NOTE_NULLIFIER,
+            GENERATOR_INDEX__NOTE_NULLIFIER,
         )
     }
 
@@ -76,16 +77,14 @@ impl NoteHash for NFTNote {
         self,
         owner: AztecAddress,
         note_hash_for_nullification: Field,
-    ) -> Option<Field> {
-        try_get_public_keys(owner).map(|public_keys| {
-            let owner_npk_m = public_keys.npk_m;
-            let owner_npk_m_hash = owner_npk_m.hash();
-            let secret = get_nhk_app(owner_npk_m_hash);
-            poseidon2_hash_with_separator(
-                [note_hash_for_nullification, secret],
-                DOM_SEP__NOTE_NULLIFIER,
-            )
-        })
+    ) -> Field {
+        let owner_npk_m = get_public_keys(owner).npk_m;
+        let owner_npk_m_hash = owner_npk_m.hash();
+        let secret = get_nsk_app(owner_npk_m_hash);
+        poseidon2_hash_with_separator(
+            [note_hash_for_nullification, secret],
+            GENERATOR_INDEX__NOTE_NULLIFIER,
+        )
     }
 }
 
@@ -125,15 +124,14 @@ impl NFTNote {
         //  - the commitment is already public information, so we're not revealing anything else
         //  - we don't need to create any additional information, private or public, for the tag
         //  - other contracts cannot impersonate us and emit logs with the same tag due to public log siloing
-        let private_log_content = NFTPartialNotePrivateLogContent {};
+        let private_log_content = NFTPartialNotePrivateLogContent { public_log_tag: commitment };
 
-        let encrypted_log = compute_partial_note_private_content_log(
+        let encrypted_log = note::compute_partial_note_private_content_log(
             private_log_content,
             owner,
             storage_slot,
             randomness,
             recipient,
-            commitment,
         );
         // Regardless of the original content size, the log is padded with random bytes up to
         // `PRIVATE_LOG_SIZE_IN_FIELDS` to prevent leaking information about the actual size.
@@ -161,14 +159,14 @@ fn compute_partial_commitment(
 ) -> Field {
     poseidon2_hash_with_separator(
         [owner.to_field(), storage_slot, randomness],
-        DOM_SEP__NOTE_HASH,
+        GENERATOR_INDEX__NOTE_HASH,
     )
 }
 
 #[derive(Packable)]
-// This note does not have any non-metadata (i.e. storage slot, owner, randomness) private content, as the only field
-// (token_id) will be public in the partial note.
-struct NFTPartialNotePrivateLogContent {}
+struct NFTPartialNotePrivateLogContent {
+    public_log_tag: Field,
+}
 
 impl NoteType for NFTPartialNotePrivateLogContent {
     fn get_id() -> Field {
@@ -197,7 +195,7 @@ impl PartialNFTNote {
     }
 
     /// Completes the partial note, creating a new note that can be used like any other NFTNote.
-    pub fn complete(self, context: PublicContext, completer: AztecAddress, token_id: Field) {
+    pub fn complete(self, context: &mut PublicContext, completer: AztecAddress, token_id: Field) {
         // A note with a value of zero is valid, but we cannot currently complete a partial note with such a value
         // because this will result in the completion log having its last field set to 0. Public logs currently do not
         // track their length, and so trailing zeros are simply trimmed. This results in the completion log missing its
@@ -208,10 +206,8 @@ impl PartialNFTNote {
         // We verify that the partial note we're completing is valid (i.e. completer is correct, it uses the correct
         // state variable's storage slot, and it is internally consistent).
         let validity_commitment = self.compute_validity_commitment(completer);
-        // Safety: we're using the existence of the nullifier as proof of the contract having validated the partial
-        // note's preimage, which is safe.
         assert(
-            context.nullifier_exists_unsafe(validity_commitment, context.this_address()),
+            context.nullifier_exists(validity_commitment, context.this_address()),
             "Invalid partial note or completer",
         );
 
@@ -233,7 +229,7 @@ impl PartialNFTNote {
     pub fn compute_validity_commitment(self, completer: AztecAddress) -> Field {
         poseidon2_hash_with_separator(
             [self.commitment, completer.to_field()],
-            DOM_SEP__PARTIAL_NOTE_VALIDITY_COMMITMENT,
+            GENERATOR_INDEX__PARTIAL_NOTE_VALIDITY_COMMITMENT,
         )
     }
 
@@ -246,6 +242,6 @@ impl PartialNFTNote {
     fn compute_complete_note_hash(self, token_id: Field) -> Field {
         // Here we finalize the note hash by including the (public) token id into the partial note commitment. Note that
         // we use the same generator index as we used for the first round of poseidon - this is not an issue.
-        poseidon2_hash_with_separator([self.commitment, token_id], DOM_SEP__NOTE_HASH)
+        poseidon2_hash_with_separator([self.commitment, token_id], GENERATOR_INDEX__NOTE_HASH)
     }
 }

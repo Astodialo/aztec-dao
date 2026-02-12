@@ -1,10 +1,16 @@
 use aztec::{
-    context::PrivateContext,
+    context::{PrivateContext, PublicContext},
+    keys::getters::{get_nsk_app, get_public_keys},
     macros::notes::custom_note,
-    note::note_interface::NoteHash,
-    protocol::{
+    messages::logs::note,
+    note::note_interface::{NoteHash, NoteType},
+    oracle::random::random,
+    protocol_types::{
         address::AztecAddress,
-        constants::{DOM_SEP__NOTE_HASH, DOM_SEP__NOTE_NULLIFIER},
+        constants::{
+            GENERATOR_INDEX__NOTE_HASH, GENERATOR_INDEX__NOTE_NULLIFIER,
+            GENERATOR_INDEX__PARTIAL_NOTE_VALIDITY_COMMITMENT,
+        },
         hash::poseidon2_hash_with_separator,
         traits::{Deserialize, Hash, Packable, Serialize, ToField},
     },
@@ -61,7 +67,7 @@ impl NoteHash for HatNote {
     ) -> Field {
         // You likely want to use all fields, including the passed-in mem_contract and randomness
         let input = self.pack().concat([storage_slot, randomness, owner.to_field()]);
-        poseidon2_hash_with_separator(input, DOM_SEP__NOTE_HASH)
+        poseidon2_hash_with_separator(input, GENERATOR_INDEX__NOTE_HASH)
     }
 
     fn compute_nullifier(
@@ -72,7 +78,7 @@ impl NoteHash for HatNote {
     ) -> Field {
         poseidon2_hash_with_separator(
             [note_hash_for_nullification, owner.to_field()],
-            DOM_SEP__NOTE_NULLIFIER,
+            GENERATOR_INDEX__NOTE_NULLIFIER,
         )
     }
 
@@ -80,13 +86,33 @@ impl NoteHash for HatNote {
         self,
         owner: AztecAddress,
         note_hash_for_nullification: Field,
-    ) -> Option<Field> {
-        Option::some(poseidon2_hash_with_separator(
+    ) -> Field {
+        poseidon2_hash_with_separator(
             [note_hash_for_nullification, owner.to_field()],
-            DOM_SEP__NOTE_NULLIFIER,
-        ))
+            GENERATOR_INDEX__NOTE_NULLIFIER,
+        )
     }
 }
+//impl NoteHash for HatNote {
+//    fn compute_note_hash(self, storage_slot: Field) -> Field {
+//        let secret = self.pack().concat([storage_slot]);
+//        poseidon2_hash_with_separator(secret, GENERATOR_INDEX__NOTE_HASH)
+//    }
+//
+//    fn compute_nullifier(self, _: &mut PrivateContext, note_hash_to_nullify: Field) -> Field {
+//        poseidon2_hash_with_separator(
+//            [note_hash_to_nullify, self.mem_contract.to_field()],
+//            GENERATOR_INDEX__NOTE_NULLIFIER,
+//       )
+//  }
+//
+//   unconstrained fn compute_nullifier_unconstrained(self, note_hash_to_nullify: Field) -> Field {
+//       poseidon2_hash_with_separator(
+//          [note_hash_to_nullify, self.mem_contract.to_field()],
+//            GENERATOR_INDEX__NOTE_NULLIFIER,
+//        )
+//    }
+//}
 
 impl HatNote {
     pub fn new(

@@ -1,15 +1,22 @@
 use dep::aztec::macros::aztec;
+pub mod types;
 
 #[aztec]
 pub contract Treasury {
-    use address_note::AddressNote;
-    use aztec::context::PrivateContext;
+    use crate::types::address_note::AddressNote;
+    use aztec::context::{self, private_context::PrivateContext};
+    use aztec::keys::getters::get_public_keys;
     use aztec::{
         macros::{functions::{external, initializer}, storage::storage},
-        messages::message_delivery::MessageDelivery,
-        protocol::address::AztecAddress,
-        state_vars::{Owned, PrivateMutable},
+        note::{
+            note_getter_options::NoteGetterOptions, note_interface::NoteProperties,
+            note_viewer_options::NoteViewerOptions,
+        },
+        protocol_types::{address::AztecAddress, hash::poseidon2_hash, traits::Hash},
+        state_vars::{owned::Owned, private_mutable::PrivateMutable, private_set::PrivateSet},
+        utils::comparison::Comparator,
     };
+    use aztec::messages::message_delivery::MessageDelivery;
 
     use nft::NFT;
     use token::Token;
@@ -24,10 +31,10 @@ pub contract Treasury {
     fn constructor(gov_addr: AztecAddress) {
         //assert(!admin.is_zero(), "invalid admin");
         let this_address = self.context.this_address();
-        let members_note = AddressNote { address: gov_addr };
+        let members_note = AddressNote::new(gov_addr);
 
         self.storage.gov.at(this_address).initialize(members_note).deliver(
-            MessageDelivery.ONCHAIN_CONSTRAINED,
+            MessageDelivery.CONSTRAINED_ONCHAIN,
         );
     }
 
@@ -39,11 +46,11 @@ pub contract Treasury {
             .gov
             .at(this_address)
             .replace(|note| {
-                let msg_sender = context.maybe_msg_sender().unwrap();
+                let msg_sender = context.msg_sender().unwrap();
                 assert(note.address == msg_sender, "Not authorized");
                 note
             })
-            .deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
+            .deliver(MessageDelivery.CONSTRAINED_ONCHAIN);
     }
 
     /// @notice Withdraws an amount from the treasury's private balance to the
@@ -76,8 +83,12 @@ pub contract Treasury {
             .storage
             .gov
             .at(this_address)
-            .replace(|_note| AddressNote { address: gov_addr })
-            .deliver(MessageDelivery.ONCHAIN_CONSTRAINED)
+            .replace(|note| {
+                let new_note = AddressNote::new(gov_addr);
+
+                new_note
+            })
+            .deliver(MessageDelivery.CONSTRAINED_ONCHAIN)
     }
 
     #[external("utility")]

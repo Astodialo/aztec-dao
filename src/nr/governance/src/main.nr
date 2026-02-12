@@ -3,12 +3,12 @@ pub mod types;
 
 #[aztec]
 contract Governance {
-    use address_note::AddressNote;
-    use field_note::FieldNote;
+    use crate::types::address_note::AddressNote;
+    use crate::types::field_note::FieldNote;
     use crate::types::member_proposal_note::MemberProposalNote;
     use crate::types::members_note::MembersNote;
     use crate::types::token_proposal_note::TokenProposalNote;
-    use aztec::context::PrivateContext;
+    use aztec::context::{self, private_context::PrivateContext};
     use aztec::keys::getters::get_public_keys;
     use aztec::{
         macros::{functions::{external, initializer}, storage::storage},
@@ -16,13 +16,14 @@ contract Governance {
             note_getter_options::NoteGetterOptions, note_interface::NoteProperties,
             note_viewer_options::NoteViewerOptions,
         },
-        protocol::{address::AztecAddress, hash::poseidon2_hash, traits::Hash},
-        state_vars::{Owned, PrivateMutable, PrivateSet},
+        protocol_types::{address::AztecAddress, hash::poseidon2_hash, traits::Hash},
+        state_vars::{owned::Owned, private_mutable::PrivateMutable, private_set::PrivateSet},
         utils::comparison::Comparator,
     };
     use aztec::messages::message_delivery::MessageDelivery;
 
     use members::Members;
+    use std::{cmp, ops::Div};
     use treasury::Treasury;
 
     #[storage]
@@ -46,34 +47,34 @@ contract Governance {
         let mut members = [0; 10];
         members[0] = admin.inner;
         let members_note = MembersNote::new(members);
-        let count_note = FieldNote { value: 0 };
+        let count_note = FieldNote::new(0);
 
         self.storage.last_proposal_id.at(this_address).initialize(count_note).deliver(
-            MessageDelivery.ONCHAIN_CONSTRAINED,
+            MessageDelivery.CONSTRAINED_ONCHAIN,
         );
 
         self.storage.members.at(this_address).initialize(members_note).deliver(
-            MessageDelivery.ONCHAIN_CONSTRAINED,
+            MessageDelivery.CONSTRAINED_ONCHAIN,
         );
     }
 
     #[external("private")]
     fn add_mem_contract(members_addr: AztecAddress) {
         let this_address = self.context.this_address();
-        let members_note = AddressNote { address: members_addr };
+        let members_note = AddressNote::new(members_addr);
 
         self.storage.mem_contract.at(this_address).initialize(members_note).deliver(
-            MessageDelivery.ONCHAIN_CONSTRAINED,
+            MessageDelivery.CONSTRAINED_ONCHAIN,
         );
     }
 
     #[external("private")]
     fn add_treasury(treasury_addr: AztecAddress) {
         let this_address = self.context.this_address();
-        let treasury_note = AddressNote { address: treasury_addr };
+        let treasury_note = AddressNote::new(treasury_addr);
 
         self.storage.treasury.at(this_address).initialize(treasury_note).deliver(
-            MessageDelivery.ONCHAIN_CONSTRAINED,
+            MessageDelivery.CONSTRAINED_ONCHAIN,
         );
     }
 
@@ -88,14 +89,15 @@ contract Governance {
             .last_proposal_id
             .at(this_address)
             .replace(|note| {
-                let count = note.value;
+                let count = note.value();
                 let proposal = MemberProposalNote::new(this_address, count, add, member, threshold);
                 self.storage.member_proposals.at(this_address).insert(proposal).deliver(
-                    MessageDelivery.ONCHAIN_CONSTRAINED,
+                    MessageDelivery.CONSTRAINED_ONCHAIN,
                 );
-                FieldNote { value: count + 1 }
+                let new_count_note = FieldNote::new(count + 1);
+                new_count_note
             })
-            .deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
+            .deliver(MessageDelivery.CONSTRAINED_ONCHAIN);
     }
 
     #[external("private")]
@@ -116,7 +118,7 @@ contract Governance {
             .last_proposal_id
             .at(this_address)
             .replace(|note| {
-                let count = note.value;
+                let count = note.value();
                 let proposal = TokenProposalNote::new(
                     count,
                     token,
@@ -127,11 +129,12 @@ contract Governance {
                     threshold,
                 );
                 self.storage.token_proposals.at(this_address).insert(proposal).deliver(
-                    MessageDelivery.ONCHAIN_CONSTRAINED,
+                    MessageDelivery.CONSTRAINED_ONCHAIN,
                 );
-                FieldNote { value: count + 1 }
+                let new_count_note = FieldNote::new(count + 1);
+                new_count_note
             })
-            .deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
+            .deliver(MessageDelivery.CONSTRAINED_ONCHAIN);
     }
 
     #[external("private")]
@@ -174,7 +177,7 @@ contract Governance {
             }
 
             self.storage.member_proposals.at(this_address).insert(updated_proposal).deliver(
-                MessageDelivery.ONCHAIN_CONSTRAINED,
+                MessageDelivery.CONSTRAINED_ONCHAIN,
             );
         } else {
             assert(token_prop_notes.len() == 1, "Proposal not found");
@@ -197,13 +200,13 @@ contract Governance {
             //}
 
             self.storage.token_proposals.at(this_address).insert(updated_proposal).deliver(
-                MessageDelivery.ONCHAIN_CONSTRAINED,
+                MessageDelivery.CONSTRAINED_ONCHAIN,
             );
         }
 
         // Create nullifier to prevent double voting
-        let msg_sender_npk_hash = get_public_keys(self.msg_sender()).npk_m.hash();
-        let secret = self.context.request_nhk_app(msg_sender_npk_hash);
+        let msg_sender_npk_hash = get_public_keys(self.context.msg_sender().unwrap()).npk_m.hash();
+        let secret = self.context.request_nsk_app(msg_sender_npk_hash);
         let nullifier = poseidon2_hash([proposal_id, secret]);
         self.context.push_nullifier(nullifier);
     }
@@ -217,12 +220,12 @@ contract Governance {
             .members
             .at(this_address)
             .replace(|mut note| {
-                let msg_sender = self.msg_sender();
+                let msg_sender = self.context.msg_sender().unwrap();
                 // msg_sender is admin
                 assert(msg_sender.inner == note.members[0], "Not admin");
                 note
             })
-            .deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
+            .deliver(MessageDelivery.CONSTRAINED_ONCHAIN);
 
         // Find the proposal
         let options = NoteGetterOptions::new().select(
@@ -241,7 +244,7 @@ contract Governance {
         retrieved_note.final = true;
 
         self.storage.token_proposals.at(this_address).insert(retrieved_note).deliver(
-            MessageDelivery.ONCHAIN_CONSTRAINED,
+            MessageDelivery.CONSTRAINED_ONCHAIN,
         );
     }
 
@@ -283,14 +286,14 @@ contract Governance {
             .add_member(eligibility, maxsupply, supply, lasthatid, toggle, config, token_id, member)
             .call(self.context);
 
-        mem_contract_note.deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
+        mem_contract_note.deliver(MessageDelivery.CONSTRAINED_ONCHAIN);
 
         self
             .storage
             .members
             .at(this_address)
             .replace(|mut note| {
-                let msg_sender = self.msg_sender();
+                let msg_sender = self.context.msg_sender().unwrap();
                 let mut is_member = false;
 
                 let mut empty_slot_index = 11;
@@ -313,7 +316,7 @@ contract Governance {
                 note.members[empty_slot_index] = member.inner;
                 note
             })
-            .deliver(MessageDelivery.ONCHAIN_CONSTRAINED)
+            .deliver(MessageDelivery.CONSTRAINED_ONCHAIN)
     }
 
     #[external("private")]
@@ -327,7 +330,7 @@ contract Governance {
             .members
             .at(this_address)
             .replace(|mut note| {
-                let msg_sender = self.msg_sender();
+                let msg_sender = self.context.msg_sender().unwrap();
                 // msg_sender is admin
                 assert(msg_sender.inner == note.members[0], "Not admin");
 
@@ -345,7 +348,7 @@ contract Governance {
                 }
                 note
             })
-            .deliver(MessageDelivery.ONCHAIN_CONSTRAINED)
+            .deliver(MessageDelivery.CONSTRAINED_ONCHAIN)
     }
 
     /// @notice Withdraws an amount from the treasury's private balance to the
@@ -384,7 +387,7 @@ contract Governance {
             Treasury::at(treasury).withdraw(token, amount, recipient).call(self.context);
         }
 
-        treasury_note.deliver(MessageDelivery.ONCHAIN_CONSTRAINED)
+        treasury_note.deliver(MessageDelivery.CONSTRAINED_ONCHAIN)
     }
 
     #[contract_library_method]
@@ -395,7 +398,7 @@ contract Governance {
             .members
             .at(this_address)
             .replace(|note| {
-                let msg_sender = context.maybe_msg_sender().unwrap();
+                let msg_sender = context.msg_sender().unwrap();
                 let mut is_member = false;
 
                 // Check membership
@@ -407,13 +410,13 @@ contract Governance {
                 assert(is_member, "Not a member");
                 note
             })
-            .deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
+            .deliver(MessageDelivery.CONSTRAINED_ONCHAIN);
     }
 
     #[external("utility")]
     unconstrained fn _view_current_id() -> pub Field {
         let note = self.storage.last_proposal_id.at(self.context.this_address()).view_note();
-        note.value
+        note.value()
     }
 
     #[external("utility")]

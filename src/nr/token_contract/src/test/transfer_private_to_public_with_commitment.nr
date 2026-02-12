@@ -1,6 +1,8 @@
 use crate::test::utils::{self, mint_amount};
 use crate::Token;
+use aztec::protocol_types::traits::FromField;
 use aztec::test::helpers::authwit as authwit_cheatcodes;
+use uint_note::uint_note::PartialUintNote;
 
 #[test]
 unconstrained fn transfer_private_to_public_with_commitment() {
@@ -32,7 +34,7 @@ unconstrained fn transfer_private_to_public_with_commitment_emits_validity_nulli
     let (mut env, token_contract_address, owner, recipient) =
         utils::setup_and_mint_to_private_without_minter(false);
 
-    let _commitment = env.call_private(
+    let commitment = env.call_private(
         owner,
         Token::at(token_contract_address).transfer_private_to_public_with_commitment(
             owner,
@@ -42,7 +44,15 @@ unconstrained fn transfer_private_to_public_with_commitment_emits_validity_nulli
         ),
     );
 
-    // TODO: nullifier_exists API has changed in nightly - test simplified
+    // The caller is the completer of the partial note.
+    let validity_commitment =
+        PartialUintNote::from_field(commitment).compute_validity_commitment(owner);
+    assert(
+        env.public_context(|context| {
+            context.nullifier_exists(validity_commitment, token_contract_address)
+        }),
+        "validity nullifier should exist",
+    );
 }
 
 #[test]
