@@ -86,6 +86,16 @@ describe("Gov Contract", () => {
 
     console.log("Gov address:", gov.address);
 
+    let preTresInstance = await getContractInstanceFromInstantiationParams(TreasuryContract.artifact, {
+      publicKeys: treasKeys.publicKeys,
+      deployer: alice,
+      salt: treasSalt,
+      constructorArgs: [gov.address],
+      constructorArtifact: "constructor"
+    })
+
+    await wallet.registerContract(preTresInstance, TreasuryContract.artifact, treasSk);
+
     treasury = (await deployTreasury(
       treasKeys.publicKeys,
       wallet,
@@ -97,6 +107,17 @@ describe("Gov Contract", () => {
     )) as TreasuryContract;
 
     console.log("Treasury address:", treasury.address);
+
+    let preMemInstance = await getContractInstanceFromInstantiationParams(MembersContract.artifact, {
+      publicKeys: memKeys.publicKeys,
+      deployer: alice,
+      salt: memSalt,
+      constructorArgs: [gov.address],
+      constructorArtifact: "constructor"
+    })
+
+    await wallet.registerContract(preMemInstance, MembersContract.artifact, memSk);
+
 
     members = (await deployMembers(
       memKeys.publicKeys,
