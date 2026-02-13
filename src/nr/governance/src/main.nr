@@ -79,7 +79,7 @@ contract Governance {
 
     #[external("private")]
     fn create_member_proposal(add: bool, member: AztecAddress, threshold: u32) {
-        _validate(self.context, self.storage);
+        _authorize(self.context, self.storage);
 
         let this_address = self.context.this_address();
 
@@ -107,7 +107,7 @@ contract Governance {
         recipient: AztecAddress,
         threshold: u32,
     ) {
-        _validate(self.context, self.storage);
+        _authorize(self.context, self.storage);
 
         let this_address = self.context.this_address();
 
@@ -136,7 +136,7 @@ contract Governance {
 
     #[external("private")]
     fn cast_vote(proposal_id: Field, choice: u32) {
-        _validate(self.context, self.storage);
+        _authorize(self.context, self.storage);
 
         let this_address = self.context.this_address();
 
@@ -256,7 +256,7 @@ contract Governance {
         token_id: Field,
         proposal_id: Field,
     ) {
-        _validate(self.context, self.storage);
+        _authorize(self.context, self.storage);
 
         let this_address = self.context.this_address();
 
@@ -317,10 +317,29 @@ contract Governance {
     }
 
     #[external("private")]
-    fn remove_member(address: AztecAddress) {
+    fn remove_member(proposal_id: Field) {
+        _authorize(self.context, self.storage);
+
         let this_address = self.context.this_address();
 
-        _validate(self.context, self.storage);
+        let mem_contract_note = self.storage.mem_contract.at(this_address).replace(|note| note);
+        let mem_contract = mem_contract_note.get_note().address;
+
+        let options = NoteGetterOptions::new().select(
+            MemberProposalNote::properties().proposal_id,
+            Comparator.EQ,
+            proposal_id,
+        );
+        let notes = self.storage.member_proposals.at(this_address).pop_notes(options);
+        assert(notes.len() == 1, "Proposal not found");
+
+        let retrieved_note = notes.get_unchecked(0);
+
+        assert(retrieved_note.final, "Proposal not finalized");
+
+        assert(!retrieved_note.add, "Tis an add proposal");
+
+        let member = retrieved_note.member;
 
         self
             .storage
@@ -332,29 +351,33 @@ contract Governance {
                 assert(msg_sender.inner == note.members[0], "Not admin");
 
                 let mut remove_index = 11;
-                
+
                 // Find the index of the member to remove
                 for i in 0..10 {
-                    if note.members[i] == address.inner {
+                    if note.members[i] == member.inner {
                         remove_index = i;
                     }
                 }
-                
+
                 assert(remove_index != 11, "Member not found");
-                
+
                 // Shift all elements after the removed one up by one position
                 for i in 0..10 {
                     if i >= remove_index & i < 9 {
                         note.members[i] = note.members[i + 1];
                     }
                 }
-                
+
                 // Set the last element to 0
                 note.members[9] = 0;
 
                 note
             })
-            .deliver(MessageDelivery.ONCHAIN_CONSTRAINED)
+            .deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
+
+        Members::at(mem_contract).remove_member(member).call(self.context);
+
+        mem_contract_note.deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
     }
 
     /// @notice Withdraws an amount from the treasury's private balance to the
@@ -364,7 +387,7 @@ contract Governance {
     fn withdraw(proposal_id: Field) {
         let this_address = self.context.this_address();
 
-        _validate(self.context, self.storage);
+        _authorize(self.context, self.storage);
 
         let options = NoteGetterOptions::new().select(
             TokenProposalNote::properties().proposal_id,
@@ -397,7 +420,7 @@ contract Governance {
     }
 
     #[contract_library_method]
-    fn _validate(context: &mut PrivateContext, storage: Storage<&mut PrivateContext>) {
+    fn _authorize(context: &mut PrivateContext, storage: Storage<&mut PrivateContext>) {
         let this_address = context.this_address();
 
         storage

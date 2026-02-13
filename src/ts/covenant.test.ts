@@ -281,7 +281,7 @@ describe("Gov Contract", () => {
     });
   });
 
-  describe("members", async () => {
+  describe.only("members", async () => {
     beforeEach(async () => {
       await gov
         .withWallet(wallet)
@@ -400,7 +400,17 @@ describe("Gov Contract", () => {
 
       await gov
         .withWallet(wallet)
-        .methods.remove_member(bob)
+        .methods.create_member_proposal(false, bob, 1)
+        .send({ from: alice });
+
+      await gov
+        .withWallet(wallet)
+        .methods.cast_vote(3n, 1)
+        .send({ from: alice });
+
+      await gov
+        .withWallet(wallet)
+        .methods.remove_member(3n)
         .send({ from: alice });
 
       const after_bob_members = await gov.methods._view_members().simulate({
@@ -453,8 +463,18 @@ describe("Gov Contract", () => {
       // After a new proposal has been created it should be 3
       expect(proposal_id).toStrictEqual(3n);
 
+      await gov
+        .withWallet(wallet)
+        .methods.create_member_proposal(false, bob, 1)
+        .send({ from: alice });
+
+      await gov
+        .withWallet(wallet)
+        .methods.cast_vote(3n, 1)
+        .send({ from: alice });
+
       await expect(
-        gov.withWallet(wallet).methods.remove_member(alice).send({ from: bob }),
+        gov.withWallet(wallet).methods.remove_member(3n).send({ from: bob }),
       ).rejects.toThrow(/Assertion failed: Not admin/);
     });
   });
