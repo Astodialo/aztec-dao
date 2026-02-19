@@ -10,7 +10,7 @@ use aztec::{
     },
 };
 
-use crate::types::bignum_extensions::U256;
+use crate::types::U256::U256;
 use dep::bignum::BigNum;
 
 // NFTNote supports partial notes, i.e. the ability to create an incomplete note in private, hiding certain values (the
@@ -179,7 +179,8 @@ impl HatNote {
                                 let newHat_shifted = U256::from_u16(newHat).lshift(shift);
                                 admin.bitor(newHat_shifted)
                             } else {
-                                let i6_bits = TOPHAT_ADDRESS_SPACE + (LOWER_LEVEL_ADDRESS_SPACE * 6);
+                                let i6_bits =
+                                    TOPHAT_ADDRESS_SPACE + (LOWER_LEVEL_ADDRESS_SPACE * 6);
                                 let mask6 = U256::mask_lower(256 - i6_bits);
                                 let masked6 = admin.bitand(mask6);
 
@@ -188,67 +189,93 @@ impl HatNote {
                                     let newHat_shifted = U256::from_u16(newHat).lshift(shift);
                                     admin.bitor(newHat_shifted)
                                 } else {
-                                    let i7_bits = TOPHAT_ADDRESS_SPACE + (LOWER_LEVEL_ADDRESS_SPACE * 7);
+                                    let i7_bits =
+                                        TOPHAT_ADDRESS_SPACE + (LOWER_LEVEL_ADDRESS_SPACE * 7);
                                     let mask7 = U256::mask_lower(256 - i7_bits);
                                     let masked7 = admin.bitand(mask7);
 
                                     if masked7.is_zero() {
-                                        let shift = LOWER_LEVEL_ADDRESS_SPACE * (MAX_LEVELS - 1 - 7);
+                                        let shift =
+                                            LOWER_LEVEL_ADDRESS_SPACE * (MAX_LEVELS - 1 - 7);
                                         let newHat_shifted = U256::from_u16(newHat).lshift(shift);
                                         admin.bitor(newHat_shifted)
                                     } else {
-                                        let i8_bits = TOPHAT_ADDRESS_SPACE + (LOWER_LEVEL_ADDRESS_SPACE * 8);
+                                        let i8_bits =
+                                            TOPHAT_ADDRESS_SPACE + (LOWER_LEVEL_ADDRESS_SPACE * 8);
                                         let mask8 = U256::mask_lower(256 - i8_bits);
                                         let masked8 = admin.bitand(mask8);
 
                                         if masked8.is_zero() {
-                                            let shift = LOWER_LEVEL_ADDRESS_SPACE * (MAX_LEVELS - 1 - 8);
-                                            let newHat_shifted = U256::from_u16(newHat).lshift(shift);
+                                            let shift =
+                                                LOWER_LEVEL_ADDRESS_SPACE * (MAX_LEVELS - 1 - 8);
+                                            let newHat_shifted =
+                                                U256::from_u16(newHat).lshift(shift);
                                             admin.bitor(newHat_shifted)
                                         } else {
-                                            let i9_bits = TOPHAT_ADDRESS_SPACE + (LOWER_LEVEL_ADDRESS_SPACE * 9);
+                                            let i9_bits = TOPHAT_ADDRESS_SPACE
+                                                + (LOWER_LEVEL_ADDRESS_SPACE * 9);
                                             let mask9 = U256::mask_lower(256 - i9_bits);
                                             let masked9 = admin.bitand(mask9);
 
                                             if masked9.is_zero() {
-                                                let shift = LOWER_LEVEL_ADDRESS_SPACE * (MAX_LEVELS - 1 - 9);
-                                                let newHat_shifted = U256::from_u16(newHat).lshift(shift);
+                                                let shift = LOWER_LEVEL_ADDRESS_SPACE
+                                                    * (MAX_LEVELS - 1 - 9);
+                                                let newHat_shifted =
+                                                    U256::from_u16(newHat).lshift(shift);
                                                 admin.bitor(newHat_shifted)
                                             } else {
-                                                let i10_bits = TOPHAT_ADDRESS_SPACE + (LOWER_LEVEL_ADDRESS_SPACE * 10);
+                                                let i10_bits = TOPHAT_ADDRESS_SPACE
+                                                    + (LOWER_LEVEL_ADDRESS_SPACE * 10);
                                                 let mask10 = U256::mask_lower(256 - i10_bits);
                                                 let masked10 = admin.bitand(mask10);
 
                                                 if masked10.is_zero() {
-                                                    let shift = LOWER_LEVEL_ADDRESS_SPACE * (MAX_LEVELS - 1 - 10);
-                                                    let newHat_shifted = U256::from_u16(newHat).lshift(shift);
+                                                    let shift = LOWER_LEVEL_ADDRESS_SPACE
+                                                        * (MAX_LEVELS - 1 - 10);
+                                                    let newHat_shifted =
+                                                        U256::from_u16(newHat).lshift(shift);
                                                     admin.bitor(newHat_shifted)
                                                 } else {
-                                                    let i11_bits = TOPHAT_ADDRESS_SPACE + (LOWER_LEVEL_ADDRESS_SPACE * 11);
+                                                    let i11_bits = TOPHAT_ADDRESS_SPACE
+                                                        + (LOWER_LEVEL_ADDRESS_SPACE * 11);
                                                     let mask11 = U256::mask_lower(256 - i11_bits);
                                                     let masked11 = admin.bitand(mask11);
 
                                                     if masked11.is_zero() {
-                                                        let shift = LOWER_LEVEL_ADDRESS_SPACE * (MAX_LEVELS - 1 - 11);
-                                                        let newHat_shifted = U256::from_u16(newHat).lshift(shift);
+                                                        let shift = LOWER_LEVEL_ADDRESS_SPACE
+                                                            * (MAX_LEVELS - 1 - 11);
+                                                        let newHat_shifted =
+                                                            U256::from_u16(newHat).lshift(shift);
                                                         admin.bitor(newHat_shifted)
                                                     } else {
-                                                        let i12_bits = TOPHAT_ADDRESS_SPACE + (LOWER_LEVEL_ADDRESS_SPACE * 12);
-                                                        let mask12 = U256::mask_lower(256 - i12_bits);
+                                                        let i12_bits = TOPHAT_ADDRESS_SPACE
+                                                            + (LOWER_LEVEL_ADDRESS_SPACE * 12);
+                                                        let mask12 =
+                                                            U256::mask_lower(256 - i12_bits);
                                                         let masked12 = admin.bitand(mask12);
 
                                                         if masked12.is_zero() {
-                                                            let shift = LOWER_LEVEL_ADDRESS_SPACE * (MAX_LEVELS - 1 - 12);
-                                                            let newHat_shifted = U256::from_u16(newHat).lshift(shift);
+                                                            let shift = LOWER_LEVEL_ADDRESS_SPACE
+                                                                * (MAX_LEVELS - 1 - 12);
+                                                            let newHat_shifted = U256::from_u16(
+                                                                newHat,
+                                                            )
+                                                                .lshift(shift);
                                                             admin.bitor(newHat_shifted)
                                                         } else {
-                                                            let i13_bits = TOPHAT_ADDRESS_SPACE + (LOWER_LEVEL_ADDRESS_SPACE * 13);
-                                                            let mask13 = U256::mask_lower(256 - i13_bits);
+                                                            let i13_bits = TOPHAT_ADDRESS_SPACE
+                                                                + (LOWER_LEVEL_ADDRESS_SPACE * 13);
+                                                            let mask13 =
+                                                                U256::mask_lower(256 - i13_bits);
                                                             let masked13 = admin.bitand(mask13);
 
                                                             if masked13.is_zero() {
-                                                                let shift = LOWER_LEVEL_ADDRESS_SPACE * (MAX_LEVELS - 1 - 13);
-                                                                let newHat_shifted = U256::from_u16(newHat).lshift(shift);
+                                                                let shift = LOWER_LEVEL_ADDRESS_SPACE
+                                                                    * (MAX_LEVELS - 1 - 13);
+                                                                let newHat_shifted = U256::from_u16(
+                                                                    newHat,
+                                                                )
+                                                                    .lshift(shift);
                                                                 admin.bitor(newHat_shifted)
                                                             } else {
                                                                 admin
@@ -335,7 +362,8 @@ impl HatNote {
                                                             12
                                                         } else {
                                                             let level13_mask = U256::mask_lower(16);
-                                                            let masked13 = hatId.bitand(level13_mask);
+                                                            let masked13 =
+                                                                hatId.bitand(level13_mask);
                                                             if masked13.is_zero() {
                                                                 13
                                                             } else {

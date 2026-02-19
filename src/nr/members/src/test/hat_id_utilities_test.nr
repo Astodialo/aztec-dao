@@ -1,5 +1,5 @@
-use crate::types::bignum_extensions::U256;
 use crate::types::hat_note::HatNote;
+use crate::types::U256::U256;
 
 fn zero() -> U256 {
     U256::zero()
@@ -23,11 +23,11 @@ unconstrained fn test_getTopHatDomain_level_1() {
 unconstrained fn test_getAdminAtLocalLevel_level_0() {
     let tophat = HatNote::buildHatId(zero(), 1);
     let child = HatNote::buildHatId(tophat, 5);
-    
+
     let child_level = HatNote::getLocalHatLevel(child);
     let admin_at_0 = HatNote::getAdminAtLocalLevel(child, 0);
     let zero_val = U256::zero();
-    
+
     assert(child_level >= 2, "child should be at level 2 or higher");
     assert(admin_at_0.ne(zero_val), "level 0 admin should not be zero");
 }
@@ -39,7 +39,7 @@ unconstrained fn test_getAdminAtLocalLevel_level_1() {
     let child_level = HatNote::getLocalHatLevel(child);
     let admin_at_1 = HatNote::getAdminAtLocalLevel(child, 1);
     let zero_val = U256::zero();
-    
+
     assert(child_level >= 2, "child should be at level 2 or higher");
     assert(admin_at_1.ne(zero_val), "level 1 admin should not be zero");
 }
@@ -65,18 +65,18 @@ unconstrained fn test_getAdminAtLocalLevel_chain() {
 unconstrained fn test_getAdminAtLocalLevel_level_13_max() {
     let tophat = HatNote::buildHatId(zero(), 1);
     let mut current = tophat;
-    
+
     for _i in 0..13 {
         current = HatNote::buildHatId(current, 1);
     }
-    
+
     let level = HatNote::getLocalHatLevel(current);
     assert(level == 14, "should be level 14");
 
     let admin_13 = HatNote::getAdminAtLocalLevel(current, 13);
     let admin_12 = HatNote::getAdminAtLocalLevel(current, 12);
     let zero_val = U256::zero();
-    
+
     assert(admin_13.ne(zero_val), "level 13 admin should not be zero");
     assert(admin_12.ne(zero_val), "level 12 admin should not be zero");
 }
@@ -115,11 +115,11 @@ unconstrained fn test_isValidHatId_chain_valid() {
 unconstrained fn test_isValidHatId_max_level_valid() {
     let admin = zero();
     let mut current = HatNote::buildHatId(admin, 1);
-    
+
     for _i in 0..13 {
         current = HatNote::buildHatId(current, 1);
     }
-    
+
     assert(HatNote::isValidHatId(current), "max level chain should be valid");
 }
 
@@ -139,7 +139,7 @@ unconstrained fn test_isValidHatId_different_child_ids() {
 unconstrained fn test_isValidHatId_deep_chain() {
     let admin = zero();
     let mut hat = HatNote::buildHatId(admin, 1);
-    
+
     for _i in 0..14 {
         assert(HatNote::isValidHatId(hat), "hat should be valid");
         hat = HatNote::buildHatId(hat, 1);

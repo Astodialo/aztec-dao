@@ -1,5 +1,5 @@
-use crate::types::bignum_extensions::U256;
 use crate::types::hat_note::HatNote;
+use crate::types::U256::U256;
 
 fn zero() -> U256 {
     U256::zero()

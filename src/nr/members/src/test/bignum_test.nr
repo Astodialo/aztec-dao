@@ -1,4 +1,4 @@
-use crate::types::bignum_extensions::U256;
+use crate::types::U256::U256;
 use dep::bignum::BigNum;
 
 #[test]
