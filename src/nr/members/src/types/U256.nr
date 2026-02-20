@@ -211,7 +211,13 @@ impl U256 {
 
     pub fn mask_upper(bits: u32) -> Self {
         if bits == 0 {
-            Self::zero()
+            Self {
+                limbs: [
+                    0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,
+                    0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,
+                    0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,
+                ],
+            }
         } else if bits <= 128 {
             let lower_zero_bits = 128 - bits;
             let mask = if lower_zero_bits == 0 {
