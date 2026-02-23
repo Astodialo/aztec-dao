@@ -27,7 +27,7 @@ contract Governance {
 
     #[storage]
     struct Storage<Context> {
-        members: Owned<PrivateMutable<MembersNote, Context>, Context>,
+        //members: Owned<PrivateMutable<MembersNote, Context>, Context>,
         treasury: Owned<PrivateMutable<AddressNote, Context>, Context>,
         mem_contract: Owned<PrivateMutable<AddressNote, Context>, Context>,
         last_proposal_id: Owned<PrivateMutable<FieldNote, Context>, Context>,
@@ -43,16 +43,9 @@ contract Governance {
     fn constructor(admin: AztecAddress) {
         //assert(!admin.is_zero(), "invalid admin");
         let this_address = self.context.this_address();
-        let mut members = [0; 10];
-        members[0] = admin.inner;
-        let members_note = MembersNote::new(members);
         let count_note = FieldNote { value: 0 };
 
         self.storage.last_proposal_id.at(this_address).initialize(count_note).deliver(
-            MessageDelivery.ONCHAIN_CONSTRAINED,
-        );
-
-        self.storage.members.at(this_address).initialize(members_note).deliver(
             MessageDelivery.ONCHAIN_CONSTRAINED,
         );
     }
@@ -209,43 +202,6 @@ contract Governance {
     }
 
     #[external("private")]
-    fn finalize_proposal(proposal_id: Field) {
-        let this_address = self.context.this_address();
-
-        self
-            .storage
-            .members
-            .at(this_address)
-            .replace(|mut note| {
-                let msg_sender = self.msg_sender();
-                // msg_sender is admin
-                assert(msg_sender.inner == note.members[0], "Not admin");
-                note
-            })
-            .deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
-
-        // Find the proposal
-        let options = NoteGetterOptions::new().select(
-            TokenProposalNote::properties().proposal_id,
-            Comparator.EQ,
-            proposal_id,
-        );
-
-        let notes = self.storage.token_proposals.at(this_address).pop_notes(options);
-        assert(notes.len() == 1, "Proposal not found");
-
-        let mut retrieved_note = notes.get_unchecked(0);
-
-        assert(!retrieved_note.final, "Proposal finalized");
-
-        retrieved_note.final = true;
-
-        self.storage.token_proposals.at(this_address).insert(retrieved_note).deliver(
-            MessageDelivery.ONCHAIN_CONSTRAINED,
-        );
-    }
-
-    #[external("private")]
     fn add_member(
         eligibility: AztecAddress,
         maxsupply: u32,
@@ -284,36 +240,6 @@ contract Governance {
             .call(self.context);
 
         mem_contract_note.deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
-
-        self
-            .storage
-            .members
-            .at(this_address)
-            .replace(|mut note| {
-                let msg_sender = self.msg_sender();
-                let mut is_member = false;
-
-                let mut empty_slot_index = 11;
-
-                // Check membership
-                for i in 0..10 {
-                    if note.members[i] == msg_sender.inner {
-                        is_member = true;
-                    }
-                    if note.members[i] == 0 {
-                        if empty_slot_index == 11 {
-                            empty_slot_index = i;
-                        }
-                    }
-                }
-
-                assert(is_member, "Not a member");
-                assert(empty_slot_index != 11, "Members array is full");
-
-                note.members[empty_slot_index] = member.inner;
-                note
-            })
-            .deliver(MessageDelivery.ONCHAIN_CONSTRAINED)
     }
 
     #[external("private")]
@@ -340,40 +266,6 @@ contract Governance {
         assert(!retrieved_note.add, "Tis an add proposal");
 
         let member = retrieved_note.member;
-
-        self
-            .storage
-            .members
-            .at(this_address)
-            .replace(|mut note| {
-                let msg_sender = self.msg_sender();
-                // msg_sender is admin
-                assert(msg_sender.inner == note.members[0], "Not admin");
-
-                let mut remove_index = 11;
-
-                // Find the index of the member to remove
-                for i in 0..10 {
-                    if note.members[i] == member.inner {
-                        remove_index = i;
-                    }
-                }
-
-                assert(remove_index != 11, "Member not found");
-
-                // Shift all elements after the removed one up by one position
-                for i in 0..10 {
-                    if i >= remove_index & i < 9 {
-                        note.members[i] = note.members[i + 1];
-                    }
-                }
-
-                // Set the last element to 0
-                note.members[9] = 0;
-
-                note
-            })
-            .deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
 
         Members::at(mem_contract).remove_member(member).call(self.context);
 
@@ -423,35 +315,17 @@ contract Governance {
     fn _authorize(context: &mut PrivateContext, storage: Storage<&mut PrivateContext>) {
         let this_address = context.this_address();
 
-        storage
-            .members
-            .at(this_address)
-            .replace(|note| {
-                let msg_sender = context.maybe_msg_sender().unwrap();
-                let mut is_member = false;
+        let mem_contract_note = storage.mem_contract.at(this_address).replace(|note| note);
+        let mem_contract = mem_contract_note.get_note().address;
 
-                // Check membership
-                for i in 0..10 {
-                    if note.members[i] == msg_sender.inner {
-                        is_member = true;
-                    }
-                }
-                assert(is_member, "Not a member");
-                note
-            })
-            .deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
+        Members::at(mem_contract).is_a_member(context.maybe_msg_sender().unwrap()).call(context);
+        mem_contract_note.deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
     }
 
     #[external("utility")]
     unconstrained fn _view_current_id() -> pub Field {
         let note = self.storage.last_proposal_id.at(self.context.this_address()).view_note();
         note.value
-    }
-
-    #[external("utility")]
-    unconstrained fn _view_members() -> pub [Field; 10] {
-        let note = self.storage.members.at(self.context.this_address()).view_note();
-        note.members
     }
 
     #[external("utility")]
