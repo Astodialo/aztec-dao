@@ -28,6 +28,7 @@ describe("Gov Contract", () => {
 
   let alice: AztecAddress;
   let bob: AztecAddress;
+  let charlie: AztecAddress;
   let token: TokenContract;
   let nft: NFTContract;
 
@@ -70,7 +71,7 @@ describe("Gov Contract", () => {
   beforeEach(async () => {
     ({ node, wallet, accounts } = await setupTestSuite());
 
-    [alice, bob] = accounts;
+    [alice, bob, charlie] = accounts;
 
     treasSk = Fr.random();
     treasKeys = await deriveKeys(treasSk);
@@ -143,9 +144,6 @@ describe("Gov Contract", () => {
       from: alice,
     });
 
-    const current_members = await gov.methods._view_members().simulate({
-      from: alice,
-    });
 
     const current_treasury = await gov.methods._view_treasury().simulate({
       from: alice,
@@ -164,9 +162,6 @@ describe("Gov Contract", () => {
     console.log(memmetis.hatted);
     console.log(alice);
 
-    // starting members list should be only the admin, at this case alice
-    expect(current_members[0]).toStrictEqual(alice.toBigInt());
-
     // starting counter's value is 0
     expect(current_id).toStrictEqual(0n);
 
@@ -184,29 +179,6 @@ describe("Gov Contract", () => {
         .methods.withdraw(token.address, AMOUNT, bob)
         .send({ from: bob }),
     ).rejects.toThrow(/Assertion failed: Not authorized/);
-  });
-
-  it("create member proposal from member, should succeed", async () => {
-    await gov
-      .withWallet(wallet)
-      .methods.create_member_proposal(true, bob, 1)
-      .send({ from: alice });
-
-    const proposal = await gov.methods._view_member_proposal(0n).simulate({
-      from: alice,
-    });
-
-    expect(proposal.proposal_id).toStrictEqual(0n);
-    expect(proposal.member).toStrictEqual(bob);
-    expect(proposal.votes_for).toStrictEqual(0n);
-    expect(proposal.votes_against).toStrictEqual(0n);
-
-    const new_id = await gov.methods._view_current_id().simulate({
-      from: alice,
-    });
-    //
-    // After a new proposal has been created it should 1
-    expect(new_id).toStrictEqual(1n);
   });
 
   it("create token proposal from member, should succeed", async () => {
@@ -253,23 +225,83 @@ describe("Gov Contract", () => {
         .withWallet(wallet)
         .methods.create_token_proposal(token.address, AMOUNT, false, 0n, bob, 2)
         .send({ from: alice });
-
-      await gov
-        .withWallet(wallet)
-        .methods.create_member_proposal(true, bob, 1)
-        .send({ from: alice });
     });
 
-    it("vote on member proposal from member, should succeed", async () => {
+    it("vote on token proposal from member, should succeed", async () => {
       await gov
         .withWallet(wallet)
-        .methods.cast_vote(1n, 1)
+        .methods.cast_vote(0n, 1)
         .send({ from: alice });
 
-      const new_proposal = await gov.methods._view_member_proposal(1n).simulate({ from: alice, });
+      const new_proposal = await gov.methods._view_token_proposal(0n).simulate({ from: alice, });
       expect(new_proposal.votes_for).toStrictEqual(1n);
-      expect(new_proposal.final).toStrictEqual(true);
-    }); it("vote on token proposal from member, should succeed", async () => { await gov.withWallet(wallet).methods.cast_vote(0n, 1).send({ from: alice }); const new_proposal = await gov.methods._view_token_proposal(0n).simulate({ from: alice, }); expect(new_proposal.votes_for).toStrictEqual(1n); expect(new_proposal.final).toStrictEqual(false); }); it("vote on token proposal from 2 members and finalize proposal, should succeed", async () => { await gov.withWallet(wallet).methods.cast_vote(1n, 1).send({ from: alice }); await gov.withWallet(wallet).methods.add_member(bob, 2, 2, 2, bob, 2, 1, 1n).send({ from: alice }); const current_members = await gov.methods._view_members().simulate({ from: alice, }); expect(current_members[0]).toStrictEqual(alice.toBigInt()); expect(current_members[1]).toStrictEqual(bob.toBigInt()); await gov.withWallet(wallet).methods.cast_vote(0n, 1).send({ from: alice }); const new_proposal = await gov.methods._view_token_proposal(0n).simulate({ from: alice, }); expect(new_proposal.votes_for).toStrictEqual(1n); expect(new_proposal.final).toStrictEqual(false); await gov.withWallet(wallet).methods.cast_vote(0n, 1).send({ from: bob }); const nn_proposal = await gov.methods._view_token_proposal(0n).simulate({ from: alice, }); expect(nn_proposal.final).toStrictEqual(true); expect(nn_proposal.votes_for).toStrictEqual(2n); }); it("vote on proposal from member a second time, should fail", async () => { await gov.withWallet(wallet).methods.cast_vote(0n, 1).send({ from: alice }); const new_proposal = await gov.methods._view_token_proposal(0n).simulate({ from: alice, }); expect(new_proposal.votes_for).toStrictEqual(1n); await expect(gov.withWallet(wallet).methods.cast_vote(0n, 1).send({ from: alice }),).rejects.toThrow("Invalid tx: Existing nullifier"); const n_proposal = await gov.methods._view_token_proposal(0n).simulate({ from: alice, }); await expect(gov.withWallet(wallet).methods.cast_vote(0n, 0).send({ from: alice }),).rejects.toThrow("Invalid tx: Existing nullifier"); const nn_proposal = await gov.methods._view_token_proposal(0n).simulate({ from: alice, }); }); it("vote on proposal from non member, should fail", async () => {
+      expect(new_proposal.final).toStrictEqual(false);
+    });
+    it("vote on token proposal from 2 members and finalize proposal, should succeed", async () => {
+      await gov
+        .withWallet(wallet)
+        .methods.add_member(bob, 2, 2, 2, bob, 2, 1, bob)
+        .send({ from: alice });
+
+      await gov
+        .withWallet(wallet)
+        .methods.cast_vote(0n, 1)
+        .send({ from: alice });
+
+      const new_proposal = await gov
+        .methods
+        ._view_token_proposal(0n)
+        .simulate({ from: alice, });
+
+      expect(new_proposal.votes_for).toStrictEqual(1n);
+      expect(new_proposal.final).toStrictEqual(false);
+      await gov
+        .withWallet(wallet)
+        .methods.cast_vote(0n, 1)
+        .send({ from: bob });
+
+      const nn_proposal = await gov
+        .methods
+        ._view_token_proposal(0n)
+        .simulate({ from: alice, });
+
+      expect(nn_proposal.final).toStrictEqual(true);
+      expect(nn_proposal.votes_for).toStrictEqual(2n);
+    });
+    it("vote on proposal from member a second time, should fail", async () => {
+      await gov
+        .withWallet(wallet)
+        .methods.cast_vote(0n, 1)
+        .send({ from: alice });
+
+      const new_proposal = await gov
+        .methods
+        ._view_token_proposal(0n)
+        .simulate({ from: alice, });
+
+      expect(new_proposal.votes_for).toStrictEqual(1n);
+      await expect(
+        gov
+          .withWallet(wallet)
+          .methods.cast_vote(0n, 1)
+          .send({ from: alice }),).rejects.toThrow("Invalid tx: Existing nullifier");
+
+      const n_proposal = await gov
+        .methods._view_token_proposal(0n)
+        .simulate({ from: alice, });
+
+      await expect(
+        gov
+          .withWallet(wallet)
+          .methods.cast_vote(0n, 0)
+          .send({ from: alice }),).rejects.toThrow("Invalid tx: Existing nullifier");
+      const nn_proposal = await gov
+        .methods
+        ._view_token_proposal(0n)
+        .simulate({ from: alice, });
+    });
+
+    it("vote on proposal from non member, should fail", async () => {
       await expect(gov.withWallet(wallet).methods.cast_vote(0n, 1).send({ from: bob }),).rejects.toThrow(/Assertion failed: Not a member/);
 
       const current_id = await gov.methods._view_current_id().simulate({
@@ -277,25 +309,15 @@ describe("Gov Contract", () => {
       });
 
       // After a new proposal has been created it should be1
-      expect(current_id).toStrictEqual(2n);
+      expect(current_id).toStrictEqual(1n);
     });
   });
 
-  describe.only("members", async () => {
+  describe("members", async () => {
     beforeEach(async () => {
       await gov
         .withWallet(wallet)
         .methods.create_token_proposal(token.address, AMOUNT, false, 0n, bob, 2)
-        .send({ from: alice });
-
-      await gov
-        .withWallet(wallet)
-        .methods.create_member_proposal(true, bob, 1)
-        .send({ from: alice });
-
-      await gov
-        .withWallet(wallet)
-        .methods.cast_vote(1n, 1)
         .send({ from: alice });
     });
     it("member adds a new member(bob), should succeed", async () => {
@@ -308,15 +330,8 @@ describe("Gov Contract", () => {
 
       await gov
         .withWallet(wallet)
-        .methods.add_member(bob, 2, 2, 2, bob, 2, 1, 1n)
+        .methods.add_member(bob, 2, 2, 2, bob, 2, 1, bob)
         .send({ from: alice });
-
-      const current_members = await gov.methods._view_members().simulate({
-        from: alice,
-      });
-
-      expect(current_members[0]).toStrictEqual(alice.toBigInt());
-      expect(current_members[1]).toStrictEqual(bob.toBigInt());
 
       const bob_hat = await members.methods._view_member(bob).simulate({
         from: bob,
@@ -338,33 +353,38 @@ describe("Gov Contract", () => {
       console.log(proposal_id)
 
       // After a new proposal has been created it should be1
-      expect(proposal_id).toStrictEqual(3n);
+      expect(proposal_id).toStrictEqual(2n);
     });
 
-    it("not a member adds a new member(bob), should fail", async () => {
+    it.only("not a member adds a new member(bob), should fail", async () => {
       await expect(
         gov
           .withWallet(wallet)
-          .methods.add_member(bob, 2, 2, 2, bob, 2, 1, 1n)
+          .methods.add_member(bob, 2, 2, 2, bob, 2, 1, bob)
           .send({ from: bob }),
       ).rejects.toThrow(/Assertion failed: Not a member/);
 
-      const current_members = await gov.methods._view_members().simulate({
-        from: alice,
-      });
+      await gov
+        .withWallet(wallet)
+        .methods.add_member(bob, 2, 2, 2, bob, 2, 1, bob)
+        .send({ from: alice });
 
-      expect(current_members[0]).toStrictEqual(alice.toBigInt());
-      expect(current_members[1]).toStrictEqual(0n);
+      await expect(
+        gov
+          .withWallet(wallet)
+          .methods.add_member(charlie, 2, 2, 2, charlie, 2, 2, charlie)
+          .send({ from: bob }),
+      ).rejects.toThrow(/Assertion failed: Not captain/);
 
       await expect(
         gov
           .withWallet(wallet)
           .methods.create_token_proposal(token.address, AMOUNT, false, 0n, bob, 1)
-          .send({ from: bob }),
+          .send({ from: charlie }),
       ).rejects.toThrow(/Assertion failed: Not a member/);
     });
 
-    it("member (admin => members[0]) removes a member, should succeed", async () => {
+    it("captain removes a member, should succeed", async () => {
       await expect(
         gov
           .withWallet(wallet)
@@ -374,15 +394,8 @@ describe("Gov Contract", () => {
 
       await gov
         .withWallet(wallet)
-        .methods.add_member(bob, 2, 2, 2, bob, 2, 1, 1n)
+        .methods.add_member(bob, 2, 2, 2, bob, 2, 1, bob)
         .send({ from: alice });
-
-      const current_members = await gov.methods._view_members().simulate({
-        from: alice,
-      });
-
-      expect(current_members[0]).toStrictEqual(alice.toBigInt());
-      expect(current_members[1]).toStrictEqual(bob.toBigInt());
 
       await gov
         .withWallet(wallet)
@@ -394,33 +407,12 @@ describe("Gov Contract", () => {
         .simulate({ from: bob });
 
       // After a new proposal has been created it should be 3
-      expect(proposal_id).toStrictEqual(3n);
-
-      console.log(current_members)
+      expect(proposal_id).toStrictEqual(2n);
 
       await gov
         .withWallet(wallet)
-        .methods.create_member_proposal(false, bob, 1)
+        .methods.remove_member(bob)
         .send({ from: alice });
-
-      await gov
-        .withWallet(wallet)
-        .methods.cast_vote(3n, 1)
-        .send({ from: alice });
-
-      await gov
-        .withWallet(wallet)
-        .methods.remove_member(3n)
-        .send({ from: alice });
-
-      const after_bob_members = await gov.methods._view_members().simulate({
-        from: alice,
-      });
-
-      console.log(after_bob_members)
-
-      expect(after_bob_members[0]).toStrictEqual(alice.toBigInt());
-      expect(after_bob_members[1]).toStrictEqual(0n);
 
       await expect(
         gov
@@ -431,7 +423,7 @@ describe("Gov Contract", () => {
 
     });
 
-    it("not member (admin => members[0]) removes a member, should fail", async () => {
+    it("not captain removes a member, should fail", async () => {
       await expect(
         gov
           .withWallet(wallet)
@@ -441,15 +433,8 @@ describe("Gov Contract", () => {
 
       await gov
         .withWallet(wallet)
-        .methods.add_member(bob, 2, 2, 2, bob, 2, 1, 1n)
+        .methods.add_member(bob, 2, 2, 2, bob, 2, 1, bob)
         .send({ from: alice });
-
-      const current_members = await gov.methods._view_members().simulate({
-        from: alice,
-      });
-
-      expect(current_members[0]).toStrictEqual(alice.toBigInt());
-      expect(current_members[1]).toStrictEqual(bob.toBigInt());
 
       await gov
         .withWallet(wallet)
@@ -461,21 +446,26 @@ describe("Gov Contract", () => {
         .simulate({ from: bob });
 
       // After a new proposal has been created it should be 3
-      expect(proposal_id).toStrictEqual(3n);
+      expect(proposal_id).toStrictEqual(2n);
+
+      await expect(
+        gov
+          .withWallet(wallet)
+          .methods.remove_member(bob)
+          .send({ from: bob }),
+      ).rejects.toThrow(/Assertion failed: Not captain/);
 
       await gov
         .withWallet(wallet)
-        .methods.create_member_proposal(false, bob, 1)
-        .send({ from: alice });
-
-      await gov
-        .withWallet(wallet)
-        .methods.cast_vote(3n, 1)
+        .methods.remove_member(bob)
         .send({ from: alice });
 
       await expect(
-        gov.withWallet(wallet).methods.remove_member(3n).send({ from: bob }),
-      ).rejects.toThrow(/Assertion failed: Not admin/);
+        gov
+          .withWallet(wallet)
+          .methods.create_token_proposal(token.address, AMOUNT, false, 0n, bob, 1)
+          .send({ from: bob }),
+      ).rejects.toThrow(/Assertion failed: Not a member/);
     });
   });
 

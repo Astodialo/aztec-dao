@@ -3,8 +3,6 @@ pub mod types;
 
 #[aztec]
 contract Governance {
-    use crate::types::member_proposal_note::MemberProposalNote;
-    use crate::types::members_note::MembersNote;
     use crate::types::token_proposal_note::TokenProposalNote;
     use address_note::AddressNote;
     use aztec::context::PrivateContext;
@@ -32,7 +30,6 @@ contract Governance {
         mem_contract: Owned<PrivateMutable<AddressNote, Context>, Context>,
         last_proposal_id: Owned<PrivateMutable<FieldNote, Context>, Context>,
         token_proposals: Owned<PrivateSet<TokenProposalNote, Context>, Context>,
-        member_proposals: Owned<PrivateSet<MemberProposalNote, Context>, Context>,
     }
 
     /// Initialize the contract, with and admin.
@@ -71,27 +68,6 @@ contract Governance {
     }
 
     #[external("private")]
-    fn create_member_proposal(add: bool, member: AztecAddress, threshold: u32) {
-        _authorize(self.context, self.storage);
-
-        let this_address = self.context.this_address();
-
-        self
-            .storage
-            .last_proposal_id
-            .at(this_address)
-            .replace(|note| {
-                let count = note.value;
-                let proposal = MemberProposalNote::new(this_address, count, add, member, threshold);
-                self.storage.member_proposals.at(this_address).insert(proposal).deliver(
-                    MessageDelivery.ONCHAIN_CONSTRAINED,
-                );
-                FieldNote { value: count + 1 }
-            })
-            .deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
-    }
-
-    #[external("private")]
     fn create_token_proposal(
         token: AztecAddress,
         amount: u128,
@@ -100,7 +76,7 @@ contract Governance {
         recipient: AztecAddress,
         threshold: u32,
     ) {
-        _authorize(self.context, self.storage);
+        _validate_member(self.context, self.storage);
 
         let this_address = self.context.this_address();
 
@@ -129,7 +105,7 @@ contract Governance {
 
     #[external("private")]
     fn cast_vote(proposal_id: Field, choice: u32) {
-        _authorize(self.context, self.storage);
+        _validate_member(self.context, self.storage);
 
         let this_address = self.context.this_address();
 
@@ -141,58 +117,28 @@ contract Governance {
         );
         let token_prop_notes = self.storage.token_proposals.at(this_address).pop_notes(options);
 
-        if token_prop_notes.len() == 0 {
-            let options = NoteGetterOptions::new().select(
-                MemberProposalNote::properties().proposal_id,
-                Comparator.EQ,
-                proposal_id,
-            );
+        assert(token_prop_notes.len() == 1, "Proposal not found");
 
-            let member_prop_notes =
-                self.storage.member_proposals.at(this_address).pop_notes(options);
+        let retrieved_note = token_prop_notes.get_unchecked(0);
 
-            assert(member_prop_notes.len() == 1, "Proposal not found");
+        assert(!retrieved_note.final, "Proposal finalized");
+        // Use the vote method to update tally
+        let mut updated_proposal = retrieved_note.vote(choice);
 
-            let retrieved_note = member_prop_notes.get_unchecked(0);
-
-            assert(!retrieved_note.final, "Proposal finalized");
-            // Use the vote method to update tally
-            let mut updated_proposal = retrieved_note.vote(choice);
-
-            if updated_proposal.votes_for >= updated_proposal.threshold {
-                updated_proposal.final = true;
-            }
-            if updated_proposal.votes_against >= updated_proposal.threshold {
-                updated_proposal.final = true;
-            }
-
-            self.storage.member_proposals.at(this_address).insert(updated_proposal).deliver(
-                MessageDelivery.ONCHAIN_CONSTRAINED,
-            );
-        } else {
-            assert(token_prop_notes.len() == 1, "Proposal not found");
-
-            let retrieved_note = token_prop_notes.get_unchecked(0);
-
-            assert(!retrieved_note.final, "Proposal finalized");
-            // Use the vote method to update tally
-            let mut updated_proposal = retrieved_note.vote(choice);
-
-            if updated_proposal.votes_for >= updated_proposal.threshold {
-                updated_proposal.final = true;
-            }
-            if updated_proposal.votes_against >= updated_proposal.threshold {
-                updated_proposal.final = true;
-            }
-
-            //if cmp.max(updated_proposal.votes_for, updated_proposal.votes_against) >= updated_proposal.threshold {
-            //    updated_proposal.final = true;
-            //}
-
-            self.storage.token_proposals.at(this_address).insert(updated_proposal).deliver(
-                MessageDelivery.ONCHAIN_CONSTRAINED,
-            );
+        if updated_proposal.votes_for >= updated_proposal.threshold {
+            updated_proposal.final = true;
         }
+        if updated_proposal.votes_against >= updated_proposal.threshold {
+            updated_proposal.final = true;
+        }
+
+        //if cmp.max(updated_proposal.votes_for, updated_proposal.votes_against) >= updated_proposal.threshold {
+        //    updated_proposal.final = true;
+        //}
+
+        self.storage.token_proposals.at(this_address).insert(updated_proposal).deliver(
+            MessageDelivery.ONCHAIN_CONSTRAINED,
+        );
 
         // Create nullifier to prevent double voting
         let msg_sender_npk_hash = get_public_keys(self.msg_sender()).npk_m.hash();
@@ -210,30 +156,14 @@ contract Governance {
         toggle: AztecAddress,
         config: u16,
         token_id: Field,
-        proposal_id: Field,
+        member: AztecAddress,
     ) {
-        _authorize(self.context, self.storage);
+        _validate_captain(self.context, self.storage);
 
         let this_address = self.context.this_address();
 
         let mem_contract_note = self.storage.mem_contract.at(this_address).replace(|note| note);
         let mem_contract = mem_contract_note.get_note().address;
-
-        let options = NoteGetterOptions::new().select(
-            MemberProposalNote::properties().proposal_id,
-            Comparator.EQ,
-            proposal_id,
-        );
-        let notes = self.storage.member_proposals.at(this_address).pop_notes(options);
-        assert(notes.len() == 1, "Proposal not found");
-
-        let retrieved_note = notes.get_unchecked(0);
-
-        assert(retrieved_note.final, "Proposal not finalized");
-
-        assert(retrieved_note.add, "Tis a remove proposal");
-
-        let member = retrieved_note.member;
 
         Members::at(mem_contract)
             .add_member(eligibility, maxsupply, supply, lasthatid, toggle, config, token_id, member)
@@ -243,29 +173,13 @@ contract Governance {
     }
 
     #[external("private")]
-    fn remove_member(proposal_id: Field) {
-        _authorize(self.context, self.storage);
+    fn remove_member(member: AztecAddress) {
+        _validate_captain(self.context, self.storage);
 
         let this_address = self.context.this_address();
 
         let mem_contract_note = self.storage.mem_contract.at(this_address).replace(|note| note);
         let mem_contract = mem_contract_note.get_note().address;
-
-        let options = NoteGetterOptions::new().select(
-            MemberProposalNote::properties().proposal_id,
-            Comparator.EQ,
-            proposal_id,
-        );
-        let notes = self.storage.member_proposals.at(this_address).pop_notes(options);
-        assert(notes.len() == 1, "Proposal not found");
-
-        let retrieved_note = notes.get_unchecked(0);
-
-        assert(retrieved_note.final, "Proposal not finalized");
-
-        assert(!retrieved_note.add, "Tis an add proposal");
-
-        let member = retrieved_note.member;
 
         Members::at(mem_contract).remove_member(member).call(self.context);
 
@@ -279,7 +193,7 @@ contract Governance {
     fn withdraw(proposal_id: Field) {
         let this_address = self.context.this_address();
 
-        _authorize(self.context, self.storage);
+        _validate_member(self.context, self.storage);
 
         let options = NoteGetterOptions::new().select(
             TokenProposalNote::properties().proposal_id,
@@ -312,13 +226,24 @@ contract Governance {
     }
 
     #[contract_library_method]
-    fn _authorize(context: &mut PrivateContext, storage: Storage<&mut PrivateContext>) {
+    fn _validate_member(context: &mut PrivateContext, storage: Storage<&mut PrivateContext>) {
         let this_address = context.this_address();
 
         let mem_contract_note = storage.mem_contract.at(this_address).replace(|note| note);
         let mem_contract = mem_contract_note.get_note().address;
 
         Members::at(mem_contract).is_a_member(context.maybe_msg_sender().unwrap()).call(context);
+        mem_contract_note.deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
+    }
+
+    #[contract_library_method]
+    fn _validate_captain(context: &mut PrivateContext, storage: Storage<&mut PrivateContext>) {
+        let this_address = context.this_address();
+
+        let mem_contract_note = storage.mem_contract.at(this_address).replace(|note| note);
+        let mem_contract = mem_contract_note.get_note().address;
+
+        Members::at(mem_contract).is_captain(context.maybe_msg_sender().unwrap()).call(context);
         mem_contract_note.deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
     }
 
@@ -338,19 +263,6 @@ contract Governance {
     unconstrained fn _view_treasury() -> pub AztecAddress {
         let note = self.storage.treasury.at(self.context.this_address()).view_note();
         note.address
-    }
-
-    #[external("utility")]
-    unconstrained fn _view_member_proposal(proposal_id: Field) -> MemberProposalNote {
-        let options = NoteViewerOptions::new().select(
-            MemberProposalNote::properties().proposal_id,
-            Comparator.EQ,
-            proposal_id,
-        );
-        let notes =
-            self.storage.member_proposals.at(self.context.this_address()).view_notes(options);
-        assert(notes.len() == 1, "Proposal not found");
-        notes.get_unchecked(0)
     }
 
     #[external("utility")]

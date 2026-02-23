@@ -23,9 +23,7 @@ pub contract Members {
             contract_class_id::ContractClassId,
             traits::{FromField, ToField},
         },
-        state_vars::{
-            Map, Owned, PrivateMutable, PrivateSet, PublicImmutable, PublicMutable,
-        },
+        state_vars::{Map, Owned, PrivateMutable, PrivateSet, PublicImmutable, PublicMutable},
         utils::comparison::Comparator,
     };
     // compression library
@@ -33,8 +31,8 @@ pub contract Members {
     // contract instance registry
     use contract_instance_registry::ContractInstanceRegistry;
     // note structs
-    use address_note::AddressNote;
     use crate::types::hat_note::HatNote;
+    use address_note::AddressNote;
 
     /// @param symbol The symbol of the NFT
     /// @param name The name of the NFT
@@ -115,6 +113,28 @@ pub contract Members {
         assert(member_note.len() == 1, "Not a member");
 
         let retrieved_note = member_note.get_unchecked(0);
+
+        self.storage.members.at(this_address).insert(retrieved_note).deliver(
+            MessageDelivery.ONCHAIN_CONSTRAINED,
+        );
+    }
+
+    #[external("private")]
+    fn is_captain(member: AztecAddress) {
+        let this_address = self.context.this_address();
+
+        _validate(self.context, self.storage);
+
+        let options =
+            NoteGetterOptions::new().select(HatNote::properties().hatted, Comparator.EQ, member);
+
+        let member_note = self.storage.members.at(this_address).pop_notes(options);
+
+        assert(member_note.len() == 1, "Not a member");
+
+        let retrieved_note = member_note.get_unchecked(0);
+
+        assert(retrieved_note.hat_id == 0, "Not captain");
 
         self.storage.members.at(this_address).insert(retrieved_note).deliver(
             MessageDelivery.ONCHAIN_CONSTRAINED,
