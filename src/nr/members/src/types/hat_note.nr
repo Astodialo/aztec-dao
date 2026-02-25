@@ -11,12 +11,11 @@ use aztec::{
 };
 
 use crate::types::U256::U256;
-use dep::bignum::BigNum;
+use ::bignum::BigNum;
 
 #[derive(Eq, Serialize, Packable)]
 #[custom_note]
 pub struct HatNote {
-    pub mem_contract: AztecAddress,
     pub eligibility: AztecAddress,
     pub maxSupply: u32,
     pub supply: u32,
@@ -64,7 +63,6 @@ impl NoteHash for HatNote {
 
 impl HatNote {
     pub fn new(
-        mem_contract: AztecAddress,
         eligibility: AztecAddress,
         maxSupply: u32,
         supply: u32,
@@ -74,17 +72,7 @@ impl HatNote {
         hat_id: Field,
         hatted: AztecAddress,
     ) -> Self {
-        Self {
-            mem_contract,
-            eligibility,
-            maxSupply,
-            supply,
-            lastHatId,
-            toggle,
-            config,
-            hat_id,
-            hatted,
-        }
+        Self { eligibility, maxSupply, supply, lastHatId, toggle, config, hat_id, hatted }
     }
 
     pub fn get_hat_id(self) -> Field {

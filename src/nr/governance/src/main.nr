@@ -1,4 +1,4 @@
-use dep::aztec::macros::aztec;
+use ::aztec::macros::aztec;
 pub mod types;
 
 #[aztec]
@@ -37,7 +37,7 @@ contract Governance {
     /// last proposal id is initialized to 0 and incremented after each proposal.
     #[external("private")]
     #[initializer]
-    fn constructor(admin: AztecAddress) {
+    fn constructor() {
         //assert(!admin.is_zero(), "invalid admin");
         let this_address = self.context.this_address();
         let count_note = FieldNote { value: 0 };
@@ -90,7 +90,6 @@ contract Governance {
                     count,
                     token,
                     amount,
-                    nft,
                     nft_token_id,
                     recipient,
                     threshold,
@@ -214,7 +213,7 @@ contract Governance {
 
         let treasury = treasury_note.get_note().address;
 
-        if retrieved_note.nft {
+        if retrieved_note.nft_token_id != 0 {
             let nft_token_id = retrieved_note.nft_token_id;
             Treasury::at(treasury).withdraw_nft(token, nft_token_id, recipient).call(self.context);
         } else {

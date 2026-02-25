@@ -17,7 +17,7 @@ Individual steps: `yarn clean`, `yarn compile`, `yarn codegen`
 
 ## Aztec Version
 
-This project uses **Aztec v4.0.0-nightly.20260204**. Noir contracts use dependencies from this tag.
+This project uses **Aztec v4.0.0-devnet.2-patch.0**. Noir contracts use dependencies from this tag.
 
 ## Architecture
 
@@ -51,6 +51,7 @@ Privacy-preserving DAO governance system with 5 interdependent Noir contracts:
 **Storage:** All state is private (PrivateMutable, PrivateSet). Note types: MembersNote, MemberProposalNote, TokenProposalNote, AddressNote, FieldNote.
 
 **Standard Note Imports:** Use packages instead of custom implementations:
+
 ```noir
 use address_note::AddressNote;
 use field_note::FieldNote;
@@ -59,7 +60,7 @@ use field_note::FieldNote;
 
 **Access Control:** `_validate()` library method enforces member/governance-only access.
 
-**Proposal Flow:** create_*_proposal → cast_vote (with nullifier) → finalize → execute (withdraw/add_member)
+**Proposal Flow:** create\_\*\_proposal → cast_vote (with nullifier) → finalize → execute (withdraw/add_member)
 
 **Cross-Contract Calls:** `ContractName::at(address).function().call(context)`
 

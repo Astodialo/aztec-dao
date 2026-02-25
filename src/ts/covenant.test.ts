@@ -1,6 +1,6 @@
 import { GovernanceContract } from "../artifacts/Governance.js";
 import { describe, it, expect, beforeEach } from "vitest";
-import { TestWallet } from "@aztec/test-wallet/server";
+import { EmbeddedWallet } from "@aztec/wallets/embedded";
 import { type AztecNode } from "@aztec/aztec.js/node";
 import {
   assertOwnsPrivateNFT,
@@ -23,7 +23,7 @@ import { getContractInstanceFromInstantiationParams } from "@aztec/stdlib/contra
 
 describe("Gov Contract", () => {
   let node: AztecNode;
-  let wallet: TestWallet;
+  let wallet: EmbeddedWallet;
   let accounts: AztecAddress[];
 
   let alice: AztecAddress;
@@ -126,10 +126,14 @@ describe("Gov Contract", () => {
       .methods.add_treasury(treasury.address)
       .send({ from: alice });
 
+    console.log("Treasury added");
+
     await gov
       .withWallet(wallet)
       .methods.add_mem_contract(members.address)
       .send({ from: alice });
+
+    console.log("Members added");
 
     token = (await deployTokenWithMinter(wallet, alice)) as TokenContract;
 
@@ -143,7 +147,6 @@ describe("Gov Contract", () => {
     const current_id = await gov.methods._view_current_id().simulate({
       from: alice,
     });
-
 
     const current_treasury = await gov.methods._view_treasury().simulate({
       from: alice,
@@ -233,7 +236,9 @@ describe("Gov Contract", () => {
         .methods.cast_vote(0n, 1)
         .send({ from: alice });
 
-      const new_proposal = await gov.methods._view_token_proposal(0n).simulate({ from: alice, });
+      const new_proposal = await gov.methods
+        ._view_token_proposal(0n)
+        .simulate({ from: alice });
       expect(new_proposal.votes_for).toStrictEqual(1n);
       expect(new_proposal.final).toStrictEqual(false);
     });
@@ -248,22 +253,17 @@ describe("Gov Contract", () => {
         .methods.cast_vote(0n, 1)
         .send({ from: alice });
 
-      const new_proposal = await gov
-        .methods
+      const new_proposal = await gov.methods
         ._view_token_proposal(0n)
-        .simulate({ from: alice, });
+        .simulate({ from: alice });
 
       expect(new_proposal.votes_for).toStrictEqual(1n);
       expect(new_proposal.final).toStrictEqual(false);
-      await gov
-        .withWallet(wallet)
-        .methods.cast_vote(0n, 1)
-        .send({ from: bob });
+      await gov.withWallet(wallet).methods.cast_vote(0n, 1).send({ from: bob });
 
-      const nn_proposal = await gov
-        .methods
+      const nn_proposal = await gov.methods
         ._view_token_proposal(0n)
-        .simulate({ from: alice, });
+        .simulate({ from: alice });
 
       expect(nn_proposal.final).toStrictEqual(true);
       expect(nn_proposal.votes_for).toStrictEqual(2n);
@@ -274,35 +274,31 @@ describe("Gov Contract", () => {
         .methods.cast_vote(0n, 1)
         .send({ from: alice });
 
-      const new_proposal = await gov
-        .methods
+      const new_proposal = await gov.methods
         ._view_token_proposal(0n)
-        .simulate({ from: alice, });
+        .simulate({ from: alice });
 
       expect(new_proposal.votes_for).toStrictEqual(1n);
       await expect(
-        gov
-          .withWallet(wallet)
-          .methods.cast_vote(0n, 1)
-          .send({ from: alice }),).rejects.toThrow("Invalid tx: Existing nullifier");
+        gov.withWallet(wallet).methods.cast_vote(0n, 1).send({ from: alice }),
+      ).rejects.toThrow("Invalid tx: Existing nullifier");
 
-      const n_proposal = await gov
-        .methods._view_token_proposal(0n)
-        .simulate({ from: alice, });
+      const n_proposal = await gov.methods
+        ._view_token_proposal(0n)
+        .simulate({ from: alice });
 
       await expect(
-        gov
-          .withWallet(wallet)
-          .methods.cast_vote(0n, 0)
-          .send({ from: alice }),).rejects.toThrow("Invalid tx: Existing nullifier");
-      const nn_proposal = await gov
-        .methods
+        gov.withWallet(wallet).methods.cast_vote(0n, 0).send({ from: alice }),
+      ).rejects.toThrow("Invalid tx: Existing nullifier");
+      const nn_proposal = await gov.methods
         ._view_token_proposal(0n)
-        .simulate({ from: alice, });
+        .simulate({ from: alice });
     });
 
     it("vote on proposal from non member, should fail", async () => {
-      await expect(gov.withWallet(wallet).methods.cast_vote(0n, 1).send({ from: bob }),).rejects.toThrow(/Assertion failed: Not a member/);
+      await expect(
+        gov.withWallet(wallet).methods.cast_vote(0n, 1).send({ from: bob }),
+      ).rejects.toThrow(/Assertion failed: Not a member/);
 
       const current_id = await gov.methods._view_current_id().simulate({
         from: bob,
@@ -324,7 +320,14 @@ describe("Gov Contract", () => {
       await expect(
         gov
           .withWallet(wallet)
-          .methods.create_token_proposal(token.address, AMOUNT, false, 0n, bob, 1)
+          .methods.create_token_proposal(
+            token.address,
+            AMOUNT,
+            false,
+            0n,
+            bob,
+            1,
+          )
           .send({ from: bob }),
       ).rejects.toThrow(/Assertion failed: Not a member/);
 
@@ -335,7 +338,7 @@ describe("Gov Contract", () => {
 
       const bob_hat = await members.methods._view_member(bob).simulate({
         from: bob,
-      })
+      });
 
       expect(bob_hat.hatted).toStrictEqual(bob);
 
@@ -350,7 +353,7 @@ describe("Gov Contract", () => {
         ._view_current_id()
         .simulate({ from: bob });
 
-      console.log(proposal_id)
+      console.log(proposal_id);
 
       // After a new proposal has been created it should be1
       expect(proposal_id).toStrictEqual(2n);
@@ -379,7 +382,14 @@ describe("Gov Contract", () => {
       await expect(
         gov
           .withWallet(wallet)
-          .methods.create_token_proposal(token.address, AMOUNT, false, 0n, bob, 1)
+          .methods.create_token_proposal(
+            token.address,
+            AMOUNT,
+            false,
+            0n,
+            bob,
+            1,
+          )
           .send({ from: charlie }),
       ).rejects.toThrow(/Assertion failed: Not a member/);
     });
@@ -388,7 +398,14 @@ describe("Gov Contract", () => {
       await expect(
         gov
           .withWallet(wallet)
-          .methods.create_token_proposal(token.address, AMOUNT, false, 0n, bob, 1)
+          .methods.create_token_proposal(
+            token.address,
+            AMOUNT,
+            false,
+            0n,
+            bob,
+            1,
+          )
           .send({ from: bob }),
       ).rejects.toThrow(/Assertion failed: Not a member/);
 
@@ -417,17 +434,30 @@ describe("Gov Contract", () => {
       await expect(
         gov
           .withWallet(wallet)
-          .methods.create_token_proposal(token.address, AMOUNT, false, 0n, bob, 1)
+          .methods.create_token_proposal(
+            token.address,
+            AMOUNT,
+            false,
+            0n,
+            bob,
+            1,
+          )
           .send({ from: bob }),
       ).rejects.toThrow(/Assertion failed: Not a member/);
-
     });
 
     it("not captain removes a member, should fail", async () => {
       await expect(
         gov
           .withWallet(wallet)
-          .methods.create_token_proposal(token.address, AMOUNT, false, 0n, bob, 1)
+          .methods.create_token_proposal(
+            token.address,
+            AMOUNT,
+            false,
+            0n,
+            bob,
+            1,
+          )
           .send({ from: bob }),
       ).rejects.toThrow(/Assertion failed: Not a member/);
 
@@ -449,10 +479,7 @@ describe("Gov Contract", () => {
       expect(proposal_id).toStrictEqual(2n);
 
       await expect(
-        gov
-          .withWallet(wallet)
-          .methods.remove_member(bob)
-          .send({ from: bob }),
+        gov.withWallet(wallet).methods.remove_member(bob).send({ from: bob }),
       ).rejects.toThrow(/Assertion failed: Not captain/);
 
       await gov
@@ -463,7 +490,14 @@ describe("Gov Contract", () => {
       await expect(
         gov
           .withWallet(wallet)
-          .methods.create_token_proposal(token.address, AMOUNT, false, 0n, bob, 1)
+          .methods.create_token_proposal(
+            token.address,
+            AMOUNT,
+            false,
+            0n,
+            bob,
+            1,
+          )
           .send({ from: bob }),
       ).rejects.toThrow(/Assertion failed: Not a member/);
     });

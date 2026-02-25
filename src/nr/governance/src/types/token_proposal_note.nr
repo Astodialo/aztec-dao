@@ -17,7 +17,6 @@ pub struct TokenProposalNote {
     pub proposal_id: Field,
     pub token: AztecAddress,
     pub amount: u128,
-    pub nft: bool,
     pub nft_token_id: Field,
     pub recipient: AztecAddress,
     pub final: bool,
@@ -67,17 +66,15 @@ impl TokenProposalNote {
         proposal_id: Field,
         token: AztecAddress,
         amount: u128,
-        nft: bool,
         nft_token_id: Field,
         recipient: AztecAddress,
         threshold: u32,
     ) -> Self {
         TokenProposalNote {
-          //  gov_contract,
+            //  gov_contract,
             proposal_id,
             token,
             amount,
-            nft,
             nft_token_id,
             recipient,
             final: false,
@@ -88,7 +85,6 @@ impl TokenProposalNote {
     }
 
     pub fn vote(self, choice: u32) -> Self {
-
         let (new_votes_for, new_votes_against) = if choice == 0 {
             (self.votes_for, self.votes_against + 1)
         } else if choice == 1 {
@@ -103,7 +99,6 @@ impl TokenProposalNote {
             proposal_id: self.proposal_id,
             token: self.token,
             amount: self.amount,
-            nft: self.nft,
             nft_token_id: self.nft_token_id,
             recipient: self.recipient,
             final: false,

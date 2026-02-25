@@ -1,22 +1,32 @@
-import { createLogger } from '@aztec/aztec.js/log';
-import { AztecAddress } from '@aztec/aztec.js/addresses';
-import { type Wallet } from '@aztec/aztec.js/wallet';
-import { Fr } from '@aztec/aztec.js/fields';
-import { createAztecNodeClient, waitForNode } from '@aztec/aztec.js/node';
-import { registerInitialLocalNetworkAccountsInWallet, TestWallet } from '@aztec/test-wallet/server';
-import { PublicKeys } from '@aztec/stdlib/keys';
-import { Contract } from '@aztec/aztec.js/contracts';
+import { createLogger } from "@aztec/aztec.js/log";
+import { AztecAddress } from "@aztec/aztec.js/addresses";
+import { type Wallet } from "@aztec/aztec.js/wallet";
+import { Fr } from "@aztec/aztec.js/fields";
+import { createAztecNodeClient, waitForNode } from "@aztec/aztec.js/node";
+import { registerInitialLocalNetworkAccountsInWallet } from "@aztec/wallets/testing";
+import { EmbeddedWallet } from "@aztec/wallets/embedded";
+import { PublicKeys } from "@aztec/stdlib/keys";
+import { Contract } from "@aztec/aztec.js/contracts";
 
-import { TreasuryContract, TreasuryContractArtifact } from '../artifacts/Treasury.js';
-import { MembersContract, MembersContractArtifact } from '../artifacts/Members.js';
-import { GovernanceContract, GovernanceContractArtifact } from '../artifacts/Governance.js';
-import { expect } from 'vitest';
-import { TokenContract, TokenContractArtifact } from '../artifacts/Token.js';
-import { NFTContract, NFTContractArtifact } from '../artifacts/NFT.js';
+import {
+  TreasuryContract,
+  TreasuryContractArtifact,
+} from "../artifacts/Treasury.js";
+import {
+  MembersContract,
+  MembersContractArtifact,
+} from "../artifacts/Members.js";
+import {
+  GovernanceContract,
+  GovernanceContractArtifact,
+} from "../artifacts/Governance.js";
+import { expect } from "vitest";
+import { TokenContract, TokenContractArtifact } from "../artifacts/Token.js";
+import { NFTContract, NFTContractArtifact } from "../artifacts/NFT.js";
 
-export const logger = createLogger('aztec:aztec-dao');
+export const logger = createLogger("aztec:aztec-dao");
 
-const { NODE_URL = 'http://localhost:8080' } = process.env;
+const { NODE_URL = "http://localhost:8080" } = process.env;
 
 /**
  * Setup the node, wallet and accounts for testing against a running Aztec network
@@ -27,8 +37,9 @@ export const setupTestSuite = async (proverEnabled: boolean = false) => {
   const node = createAztecNodeClient(NODE_URL);
   await waitForNode(node, logger);
 
-  const wallet: TestWallet = await TestWallet.create(node, { proverEnabled });
-  const accounts: AztecAddress[] = await registerInitialLocalNetworkAccountsInWallet(wallet);
+  const wallet: EmbeddedWallet = await EmbeddedWallet.create(node);
+  const accounts: AztecAddress[] =
+    await registerInitialLocalNetworkAccountsInWallet(wallet);
 
   return {
     node,
@@ -57,7 +68,11 @@ export async function deployTreasury(
   // Register contract BEFORE sending if secretKey provided
   if (secretKey) {
     const instance = await deployment.getInstance();
-    await wallet.registerContract(instance, TreasuryContractArtifact, secretKey);
+    await wallet.registerContract(
+      instance,
+      TreasuryContractArtifact,
+      secretKey,
+    );
   }
 
   const { contract } = await deployment.send({
@@ -121,7 +136,11 @@ export async function deployGovernance(
   // Register contract BEFORE sending if secretKey provided
   if (secretKey) {
     const instance = await deployment.getInstance();
-    await wallet.registerContract(instance, GovernanceContractArtifact, secretKey);
+    await wallet.registerContract(
+      instance,
+      GovernanceContractArtifact,
+      secretKey,
+    );
   }
 
   const { contract } = await deployment.send({
@@ -135,7 +154,11 @@ export async function deployGovernance(
 }
 
 // --- Token Utils ---
-export const expectUintNote = (note: { items: Fr[] }, amount: bigint, _owner: AztecAddress) => {
+export const expectUintNote = (
+  note: { items: Fr[] },
+  amount: bigint,
+  _owner: AztecAddress,
+) => {
   expect(note.items[0]).toEqual(new Fr(amount));
 };
 
@@ -199,12 +222,15 @@ export async function deployTokenWithMinter(
  * @param deployer - The account to deploy the contract with.
  * @returns A deployed contract instance.
  */
-export async function deployTokenWithInitialSupply(wallet: Wallet, deployer: AztecAddress) {
+export async function deployTokenWithInitialSupply(
+  wallet: Wallet,
+  deployer: AztecAddress,
+) {
   const { contract } = await Contract.deploy(
     wallet,
     TokenContractArtifact,
-    ['PrivateToken', 'PT', 18, 0, deployer, deployer],
-    'constructor_with_initial_supply',
+    ["PrivateToken", "PT", 18, 0, deployer, deployer],
+    "constructor_with_initial_supply",
   ).send({
     from: deployer,
     wait: { returnReceipt: true },
@@ -222,7 +248,11 @@ export async function assertOwnsPublicNFT(
   expectToBeTrue: boolean,
   caller?: AztecAddress,
 ) {
-  const from = caller ? (caller instanceof AztecAddress ? caller : caller) : expectedOwner;
+  const from = caller
+    ? caller instanceof AztecAddress
+      ? caller
+      : caller
+    : expectedOwner;
   const owner = await nft.methods.public_owner_of(tokenId).simulate({ from });
   expect(owner.equals(expectedOwner)).toBe(expectToBeTrue);
 }
@@ -235,19 +265,28 @@ export async function assertOwnsPrivateNFT(
   expectToBeTrue: boolean,
   caller?: AztecAddress,
 ) {
-  const from = caller ? (caller instanceof AztecAddress ? caller : caller) : owner;
-  const [nfts, _] = await nft.methods.get_private_nfts(owner, 0).simulate({ from });
+  const from = caller
+    ? caller instanceof AztecAddress
+      ? caller
+      : caller
+    : owner;
+  const [nfts, _] = await nft.methods
+    .get_private_nfts(owner, 0)
+    .simulate({ from });
   const hasNFT = nfts.some((id: bigint) => id === tokenId);
   expect(hasNFT).toBe(expectToBeTrue);
 }
 
 // Deploy NFT contract with a minter
-export async function deployNFTWithMinter(wallet: TestWallet, deployer: AztecAddress) {
+export async function deployNFTWithMinter(
+  wallet: EmbeddedWallet,
+  deployer: AztecAddress,
+) {
   const { contract } = await Contract.deploy(
     wallet,
     NFTContractArtifact,
-    ['TestNFT', 'TNFT', deployer, deployer],
-    'constructor_with_minter',
+    ["TestNFT", "TNFT", deployer, deployer],
+    "constructor_with_minter",
   ).send({
     from: deployer,
     wait: { returnReceipt: true },

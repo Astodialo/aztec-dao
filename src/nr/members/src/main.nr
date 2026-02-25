@@ -56,7 +56,7 @@ pub contract Members {
         lastHatId: u16,
         toggle: AztecAddress,
         config: u16,
-        token_id: Field,
+        hat_id: Field,
         hatted: AztecAddress,
     ) {
         let this_address = self.context.this_address();
@@ -68,14 +68,13 @@ pub contract Members {
         );
 
         let member = HatNote::new(
-            this_address,
             eligibility,
             maxSupply,
             supply,
             lastHatId,
             toggle,
             config,
-            token_id,
+            hat_id,
             hatted,
         );
 
@@ -149,7 +148,7 @@ pub contract Members {
         lastHatId: u16,
         toggle: AztecAddress,
         config: u16,
-        token_id: Field,
+        hat_id: Field,
         hatted: AztecAddress,
     ) {
         //_validate(&mut context, storage);
@@ -157,14 +156,13 @@ pub contract Members {
         let this_address = self.context.this_address();
 
         let member = HatNote::new(
-            this_address,
             eligibility,
             maxSupply,
             supply,
             lastHatId,
             toggle,
             config,
-            token_id,
+            hat_id,
             hatted,
         );
 
