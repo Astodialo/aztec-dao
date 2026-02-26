@@ -1,5 +1,5 @@
-import { GovernanceContract } from "../artifacts/Governance.js";
-import { describe, it, expect, beforeEach } from "vitest";
+import { GovernanceContract, GovernanceContractArtifact } from "../artifacts/Governance.js";
+import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { EmbeddedWallet } from "@aztec/wallets/embedded";
 import { type AztecNode } from "@aztec/aztec.js/node";
 import {
@@ -17,12 +17,14 @@ import { Fr, GrumpkinScalar } from "@aztec/aztec.js/fields";
 import { deriveKeys, PublicKeys } from "@aztec/stdlib/keys";
 import { TokenContract } from "../artifacts/Token.js";
 import { NFTContract } from "../artifacts/NFT.js";
-import { TreasuryContract } from "../artifacts/Treasury.js";
-import { MembersContract } from "../artifacts/Members.js";
-import { getContractInstanceFromInstantiationParams } from "@aztec/stdlib/contract";
+import { TreasuryContract, TreasuryContractArtifact } from "../artifacts/Treasury.js";
+import { MembersContract, MembersContractArtifact } from "../artifacts/Members.js";
+import { ContractInstanceWithAddress, getContractInstanceFromInstantiationParams } from "@aztec/stdlib/contract";
 
 describe("Gov Contract", () => {
+  let cleanup: () => Promise<void>;
   let node: AztecNode;
+
   let wallet: EmbeddedWallet;
   let accounts: AztecAddress[];
 
@@ -36,6 +38,7 @@ describe("Gov Contract", () => {
   const wad = (n: number = 1) => AMOUNT * BigInt(n);
 
   let treasury: TreasuryContract;
+  let treasInstance: ContractInstanceWithAddress;
   let treasSk: Fr;
   let treasKeys: {
     masterNullifierHidingKey: GrumpkinScalar;
@@ -47,6 +50,7 @@ describe("Gov Contract", () => {
   let treasSalt: Fr;
 
   let members: MembersContract;
+  let memInstance: ContractInstanceWithAddress;
   let memSk: Fr;
   let memKeys: {
     masterNullifierHidingKey: GrumpkinScalar;
@@ -58,6 +62,7 @@ describe("Gov Contract", () => {
   let memSalt: Fr;
 
   let gov: GovernanceContract;
+  let govInstance: ContractInstanceWithAddress;
   let govSk: Fr;
   let govKeys: {
     masterNullifierHidingKey: GrumpkinScalar;
@@ -69,7 +74,7 @@ describe("Gov Contract", () => {
   let govSalt: Fr;
 
   beforeEach(async () => {
-    ({ node, wallet, accounts } = await setupTestSuite());
+    ({ cleanup, node, wallet, accounts } = await setupTestSuite());
 
     [alice, bob, charlie] = accounts;
 
@@ -90,50 +95,53 @@ describe("Gov Contract", () => {
       wallet,
       alice,
       govSalt,
-      [alice],
-      "constructor",
+      [],
       govSk, // Pass secretKey for pre-registration
     )) as GovernanceContract;
-
-    console.log("Gov address:", gov.address);
 
     treasury = (await deployTreasury(
       treasKeys.publicKeys,
       wallet,
       alice,
       treasSalt,
-      [gov.address],
-      "constructor",
+      gov.address,
       treasSk, // Pass secretKey for pre-registration
     )) as TreasuryContract;
-
-    console.log("Treasury address:", treasury.address);
 
     members = (await deployMembers(
       memKeys.publicKeys,
       wallet,
       alice,
       memSalt,
-      [gov.address, alice, 2, 2, 2, alice, 2, 0n, alice],
-      "constructor",
+      gov.address,
+      alice,
       memSk, // Pass secretKey for pre-registration
     )) as MembersContract;
 
-    console.log("Members address:", members.address);
+    govInstance = (await node.getContract(gov.address)) as ContractInstanceWithAddress;
+    if (govInstance) {
+      await wallet.registerContract(govInstance, GovernanceContractArtifact);
+    }
+
+    treasInstance = (await node.getContract(treasury.address)) as ContractInstanceWithAddress;
+    if (treasInstance) {
+      await wallet.registerContract(treasInstance, TreasuryContractArtifact);
+    }
+
+    memInstance = (await node.getContract(members.address)) as ContractInstanceWithAddress;
+    if (memInstance) {
+      await wallet.registerContract(memInstance, MembersContractArtifact);
+    }
 
     await gov
       .withWallet(wallet)
       .methods.add_treasury(treasury.address)
       .send({ from: alice });
 
-    console.log("Treasury added");
-
     await gov
       .withWallet(wallet)
       .methods.add_mem_contract(members.address)
       .send({ from: alice });
-
-    console.log("Members added");
 
     token = (await deployTokenWithMinter(wallet, alice)) as TokenContract;
 
@@ -143,7 +151,12 @@ describe("Gov Contract", () => {
       .send({ from: alice });
   });
 
-  it("Deploys", async () => {
+  afterAll(async () => {
+    await cleanup();
+  });
+
+
+  it.only("Deploys", async () => {
     const current_id = await gov.methods._view_current_id().simulate({
       from: alice,
     });
@@ -359,7 +372,7 @@ describe("Gov Contract", () => {
       expect(proposal_id).toStrictEqual(2n);
     });
 
-    it.only("not a member adds a new member(bob), should fail", async () => {
+    it("not a member adds a new member(bob), should fail", async () => {
       await expect(
         gov
           .withWallet(wallet)

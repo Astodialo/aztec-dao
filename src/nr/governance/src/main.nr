@@ -42,7 +42,8 @@ contract Governance {
         let this_address = self.context.this_address();
         let count_note = FieldNote { value: 0 };
 
-        self.storage.last_proposal_id.at(this_address).initialize(count_note).deliver(
+        self.storage.last_proposal_id.at(this_address).initialize(count_note).deliver_to(
+            this_address,
             MessageDelivery.ONCHAIN_CONSTRAINED,
         );
     }
@@ -52,7 +53,8 @@ contract Governance {
         let this_address = self.context.this_address();
         let members_note = AddressNote { address: members_addr };
 
-        self.storage.mem_contract.at(this_address).initialize(members_note).deliver(
+        self.storage.mem_contract.at(this_address).initialize(members_note).deliver_to(
+            this_address,
             MessageDelivery.ONCHAIN_CONSTRAINED,
         );
     }
@@ -62,7 +64,8 @@ contract Governance {
         let this_address = self.context.this_address();
         let treasury_note = AddressNote { address: treasury_addr };
 
-        self.storage.treasury.at(this_address).initialize(treasury_note).deliver(
+        self.storage.treasury.at(this_address).initialize(treasury_note).deliver_to(
+            this_address,
             MessageDelivery.ONCHAIN_CONSTRAINED,
         );
     }
@@ -99,7 +102,7 @@ contract Governance {
                 );
                 FieldNote { value: count + 1 }
             })
-            .deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
+            .deliver_to(this_address, MessageDelivery.ONCHAIN_CONSTRAINED);
     }
 
     #[external("private")]

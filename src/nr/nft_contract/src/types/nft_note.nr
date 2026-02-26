@@ -2,7 +2,7 @@ use aztec::{
     context::{PrivateContext, PublicContext},
     keys::getters::{get_nhk_app, get_public_keys, try_get_public_keys},
     macros::notes::custom_note,
-    messages::logs::partial_note::compute_partial_note_private_content_log,
+    messages::logs::partial_note,
     note::note_interface::{NoteHash, NoteType},
     oracle::random::random,
     protocol::{
@@ -125,9 +125,11 @@ impl NFTNote {
         //  - the commitment is already public information, so we're not revealing anything else
         //  - we don't need to create any additional information, private or public, for the tag
         //  - other contracts cannot impersonate us and emit logs with the same tag due to public log siloing
+        // NFTNote has no private content fields (token_id is public), so the private log content is empty.
+        // The commitment is passed separately as the note_completion_log_tag parameter.
         let private_log_content = NFTPartialNotePrivateLogContent {};
 
-        let encrypted_log = compute_partial_note_private_content_log(
+        let encrypted_log = partial_note::compute_partial_note_private_content_log(
             private_log_content,
             owner,
             storage_slot,
@@ -165,9 +167,9 @@ fn compute_partial_commitment(
     )
 }
 
+/// Represents the private content of a partial NFTNote. Since NFTNote only has `token_id` which is
+/// revealed publicly when completing the partial note, there are no private content fields.
 #[derive(Packable)]
-// This note does not have any non-metadata (i.e. storage slot, owner, randomness) private content, as the only field
-// (token_id) will be public in the partial note.
 struct NFTPartialNotePrivateLogContent {}
 
 impl NoteType for NFTPartialNotePrivateLogContent {
@@ -197,7 +199,7 @@ impl PartialNFTNote {
     }
 
     /// Completes the partial note, creating a new note that can be used like any other NFTNote.
-    pub fn complete(self, context: PublicContext, completer: AztecAddress, token_id: Field) {
+    pub fn complete(self, context: &mut PublicContext, completer: AztecAddress, token_id: Field) {
         // A note with a value of zero is valid, but we cannot currently complete a partial note with such a value
         // because this will result in the completion log having its last field set to 0. Public logs currently do not
         // track their length, and so trailing zeros are simply trimmed. This results in the completion log missing its
@@ -208,8 +210,6 @@ impl PartialNFTNote {
         // We verify that the partial note we're completing is valid (i.e. completer is correct, it uses the correct
         // state variable's storage slot, and it is internally consistent).
         let validity_commitment = self.compute_validity_commitment(completer);
-        // Safety: we're using the existence of the nullifier as proof of the contract having validated the partial
-        // note's preimage, which is safe.
         assert(
             context.nullifier_exists_unsafe(validity_commitment, context.this_address()),
             "Invalid partial note or completer",
