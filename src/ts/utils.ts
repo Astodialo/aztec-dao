@@ -145,10 +145,8 @@ export async function deployMembers(
     captain,
   );
 
-  if (secretKey) {
-    const instance = await deployment.getInstance();
-    await wallet.registerContract(instance, MembersContractArtifact, secretKey);
-  }
+  const instance = await deployment.getInstance();
+  await wallet.registerContract(instance, MembersContractArtifact, secretKey);
 
   const { contract } = await deployment.send({
     contractAddressSalt: salt,
@@ -164,14 +162,11 @@ export async function deployGovernance(
   wallet: Wallet,
   deployer: AztecAddress,
   salt: Fr = Fr.random(),
-  args: unknown[] = [],
   secretKey?: Fr,
 ): Promise<GovernanceContract> {
-  const deployment = GovernanceContract.deployWithOpts({
+  const deployment = GovernanceContract.deployWithPublicKeys(
     publicKeys,
-    method: 'constructor',
     wallet,
-  },
   );
 
   if (secretKey) {
