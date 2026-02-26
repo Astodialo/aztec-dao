@@ -95,7 +95,6 @@ describe("Gov Contract", () => {
       wallet,
       alice,
       govSalt,
-      [],
       govSk, // Pass secretKey for pre-registration
     )) as GovernanceContract;
 
@@ -158,21 +157,21 @@ describe("Gov Contract", () => {
 
   it.only("Deploys", async () => {
     const current_id = await gov.methods._view_current_id().simulate({
-      from: alice,
+      from: gov.address,
     });
 
     const current_treasury = await gov.methods._view_treasury().simulate({
-      from: alice,
+      from: gov.address,
     });
 
     const current_mem_contract = await gov.methods
       ._view_mem_contract()
       .simulate({
-        from: alice,
+        from: gov.address,
       });
 
     const memmetis = await members.methods._view_member(alice).simulate({
-      from: alice,
+      from: members.address,
     });
 
     console.log(memmetis.hatted);
@@ -197,22 +196,25 @@ describe("Gov Contract", () => {
     ).rejects.toThrow(/Assertion failed: Not authorized/);
   });
 
-  it("create token proposal from member, should succeed", async () => {
+  it.only("create token proposal from member, should succeed", async () => {
+    console.log("start");
     await gov
       .withWallet(wallet)
-      .methods.create_token_proposal(token.address, AMOUNT, false, 0n, bob, 1)
+      .methods.create_token_proposal(token.address, AMOUNT, false, 0n, bob, 1n)
       .send({ from: alice });
 
     const proposal = await gov.methods._view_token_proposal(0n).simulate({
-      from: alice,
+      from: gov.address,
     });
+
+    console.log("proposal:", proposal);
 
     expect(proposal.proposal_id).toStrictEqual(0n);
     expect(proposal.votes_for).toStrictEqual(0n);
     expect(proposal.votes_against).toStrictEqual(0n);
 
     const new_id = await gov.methods._view_current_id().simulate({
-      from: alice,
+      from: gov.address,
     });
     //
     // After a new proposal has been created it should 1
