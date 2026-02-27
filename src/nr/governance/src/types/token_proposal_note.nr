@@ -21,8 +21,7 @@ pub struct TokenProposalNote {
     pub recipient: AztecAddress,
     pub final: bool,
     pub threshold: u32,
-    pub votes_for: u32,
-    pub votes_against: u32,
+    pub votes: u32,
 }
 
 impl NoteHash for TokenProposalNote {
@@ -79,19 +78,18 @@ impl TokenProposalNote {
             recipient,
             final: false,
             threshold,
-            votes_for: 0,
-            votes_against: 0,
+            votes: 0,
         }
     }
 
     pub fn vote(self, choice: u32) -> Self {
-        let (new_votes_for, new_votes_against) = if choice == 0 {
-            (self.votes_for, self.votes_against + 1)
+        let new_votes = if choice == 0 {
+            self.votes - 1
         } else if choice == 1 {
-            (self.votes_for + 1, self.votes_against)
+            self.votes + 1
         } else {
             assert(false, "Invalid choice");
-            (self.votes_for, self.votes_against)
+            self.votes
         };
 
         TokenProposalNote {
@@ -103,8 +101,7 @@ impl TokenProposalNote {
             recipient: self.recipient,
             final: false,
             threshold: self.threshold,
-            votes_for: new_votes_for,
-            votes_against: new_votes_against,
+            votes: new_votes,
         }
     }
 }

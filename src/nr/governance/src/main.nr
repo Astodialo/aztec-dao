@@ -127,10 +127,7 @@ contract Governance {
         // Use the vote method to update tally
         let mut updated_proposal = retrieved_note.vote(choice);
 
-        if updated_proposal.votes_for >= updated_proposal.threshold {
-            updated_proposal.final = true;
-        }
-        if updated_proposal.votes_against >= updated_proposal.threshold {
+        if updated_proposal.votes >= updated_proposal.threshold {
             updated_proposal.final = true;
         }
 
